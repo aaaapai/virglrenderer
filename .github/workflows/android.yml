@@ -22,6 +22,9 @@ jobs:
 
       - name: Setup
         run: |
+          sudo apt install -y meson libxrandr-dev libxxf86vm-dev libxcb-*-dev libx11-xcb-dev libxfixes-dev libdrm-dev libx11-dev libepoxy-dev
+          mkdir -p /tmp/build/lib/pkgconfig
+          cp libdrm.pc /tmp/build/lib/pkgconfig/
           if [ "${{matrix.arch}}" == "arm32" ]; then
             export ANDROID_TARGET=armv7a-linux-androideabi
           elif [ "${{matrix.arch}}" == "aarch64" ]; then
@@ -29,9 +32,6 @@ jobs:
           elif [ "${{matrix.arch}}" == "x86_64" ]; then
             export ANDROID_TARGET=x86_64-linux-android
           fi
-          sudo pip3 install meson ninja
-          mkdir -p /tmp/build/lib/pkgconfig
-          cp libdrm.pc /tmp/build/lib/pkgconfig/
           bash android-cross-file-gen.sh
 
       - name: Build libepoxy
