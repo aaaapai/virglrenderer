@@ -33,7 +33,7 @@ jobs:
           fi
           sudo pip3 install meson ninja
           sudo apt update
-          sudo apt install libepoxy-dev
+          sudo apt install libepoxy-dev libepoxy0 libvirglrenderer libvirglrenderer-dev
           bash android-cross-file-gen.sh
 
 
