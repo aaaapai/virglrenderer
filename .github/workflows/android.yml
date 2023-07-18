@@ -39,8 +39,10 @@ jobs:
           
       - name: Build libepoxy
         run: |
+          pwd
           git clone --depth 1 https://github.com/anholt/libepoxy.git
           cd libepoxy
+          pwd
           meson "build-android-${{matrix.arch}}" \
             --prefix=/tmp/build \
             --cross-file "/tmp/generated-cross-file" \
@@ -49,6 +51,7 @@ jobs:
 
       - name: Build virglrenderer
         run: |
+          pwd
           meson "build-android-${{matrix.arch}}" \
             --prefix=/tmp/build \
             --cross-file "/tmp/generated-cross-file" \
