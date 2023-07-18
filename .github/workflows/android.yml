@@ -22,6 +22,13 @@ jobs:
 
       - name: Setup
         run: |
+          if [ "${{matrix.arch}}" == "arm32" ]; then
+            export ANDROID_TARGET=armv7a-linux-androideabi
+          elif [ "${{matrix.arch}}" == "aarch64" ]; then
+            export ANDROID_TARGET=aarch64-linux-android
+          elif [ "${{matrix.arch}}" == "x86_64" ]; then
+            export ANDROID_TARGET=x86_64-linux-android
+          fi
           sudo pip3 install meson ninja
           mkdir -p /tmp/build/lib/pkgconfig
           cp libdrm.pc /tmp/build/lib/pkgconfig/
