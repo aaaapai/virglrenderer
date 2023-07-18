@@ -25,6 +25,7 @@ jobs:
           sudo pip3 install meson ninja
           mkdir -p /tmp/build/lib/pkgconfig
           cp libdrm.pc /tmp/build/lib/pkgconfig/
+          bash android-cross-file-gen.sh
 
       - name: Build libepoxy
         run: |
@@ -32,7 +33,7 @@ jobs:
           cd libepoxy
           meson "build-android-${{matrix.arch}}" \
             --prefix=/tmp/build \
-            --cross-file "../android-${{matrix.arch}}" \
+            --cross-file "/tmp/generated-cross-file" \
             -Degl=yes -Dglx=no -Dx11=false
           ninja -C "build-android-${{matrix.arch}}" install
 
@@ -40,7 +41,7 @@ jobs:
         run: |
           meson "build-android-${{matrix.arch}}" \
             --prefix=/tmp/build \
-            --cross-file "android-${{matrix.arch}}" \
+            --cross-file "/tmp/generated-cross-file" \
             -Dplatforms=egl
           ninja -C "build-android-${{matrix.arch}}" install
           cp "build-android-${{matrix.arch}}/vtest/libvirgl_test_server.so" /tmp/build/lib/
