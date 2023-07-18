@@ -33,7 +33,7 @@ jobs:
           fi
           sudo pip3 install meson ninja
           sudo apt update
-          sudo apt install libepoxy libepoxy-dev
+          sudo apt install dlibepoxy-dev
           bash android-cross-file-gen.sh
 
       - name: Build libepoxy
