@@ -52,6 +52,7 @@ jobs:
       - name: Build virglrenderer
         run: |
           pwd
+          sudo find / | grep epoxy
           meson "build-android-${{matrix.arch}}" \
             --prefix=/tmp/build \
             --cross-file "/tmp/generated-cross-file" \
