@@ -33,9 +33,10 @@ jobs:
           fi
           sudo pip3 install meson ninja
           sudo apt update
-          sudo apt install libepoxy-dev libepoxy0
+          sudo apt install -y autoconf automake autopoint autotools-dev binutils binutils-common binutils-x86-64-linux-gnu bsdmainutils build-essential check cpp cpp-9 debhelper dh-autoreconf dh-strip-nondeterminism dpkg-dev dwz g++ g++-9 gcc gcc-9 gcc-9-base gettext gettext-base groff-base intltool-debian libarchive-zip-perl libasan5 libatomic1 libbinutils libc-dev-bin libc6-dev libcc1-0 libcroco3 libcrypt-dev libctf-nobfd0 libctf0 libdebhelper-perl libdpkg-perl libdrm-dev libegl-dev libegl1-mesa-dev libepoxy-dev libepoxy0 libfile-stripnondeterminism-perl libgbm-dev libgcc-9-dev libgdbm-compat4 libgdbm6 libgl-dev libgl1-mesa-dev libgles-dev libgles1 libgles2 libglib2.0-0 libglvnd-dev libglx-dev libgomp1 libicu66 libisl22 libitm1 liblsan0 libmpc3 libmpfr6 libopengl-dev libopengl0 libpciaccess-dev libperl5.30 libpipeline1 libpthread-stubs0-dev libquadmath0 libsigsegv2 libstdc++-9-dev libsub-override-perl libsubunit-dev libsubunit0 libtool libtsan0 libubsan1 libuchardet0 libx11-dev libxau-dev libxcb1-dev libxdmcp-dev libxml2 linux-libc-dev m4 make man-db meson ninja-build patch perl perl-modules-5.30 pkg-config po-debconf python3-distutils python3-lib2to3 python3-pkg-resources python3-setuptools tzdata x11proto-core-dev x11proto-dev xorg-sgml-doctools xtrans-dev
+          sudo apt install -y libfontenc1 libfreetype6 libice6 libpixman-1-0 libpng16-16 libsm6 libunwind8 libxaw7 libxfont2 libxkbfile1 libxmu6 libxmuu1 libxpm4 libxt6 x11-common x11-xkb-utils xauth xkb-data xserver-common xutils-dev xvfb
           bash android-cross-file-gen.sh
-
+          
       - name: Build libepoxy
         run: |
           git clone --depth 1 https://github.com/anholt/libepoxy.git
