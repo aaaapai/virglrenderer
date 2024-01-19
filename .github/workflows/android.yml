@@ -26,6 +26,11 @@ jobs:
           mkdir -p /tmp/build/lib/pkgconfig
           cp libdrm.pc /tmp/build/lib/pkgconfig/
 
+      - name: Download NDK
+        run: |
+          wget https://dl.google.com/android/repository/android-ndk-r26b-linux.zip
+          unzip android-ndk-r26b-linux.zip
+
       - name: Build libepoxy
         run: |
           git clone --depth 1 https://github.com/anholt/libepoxy.git
