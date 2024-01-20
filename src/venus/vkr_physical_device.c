@@ -6,11 +6,35 @@
 #include "vkr_physical_device.h"
 
 #include "venus-protocol/vn_protocol_renderer_device.h"
-#include "venus-protocol/vn_protocol_renderer_info.h"
+#include "vrend_winsys_gbm.h"
 
 #include "vkr_context.h"
 #include "vkr_device.h"
 #include "vkr_instance.h"
+
+/* TODO open render node and create gbm_device per vkr_physical_device */
+static struct gbm_device *vkr_gbm_dev;
+
+static void
+vkr_gbm_device_init_once(void)
+{
+   struct virgl_gbm *vkr_gbm = virgl_gbm_init(-1);
+   if (!vkr_gbm) {
+      vkr_log("virgl_gbm_init failed");
+      exit(-1);
+   }
+
+   vkr_gbm_dev = vkr_gbm->device;
+}
+
+static struct gbm_device *
+vkr_physical_device_get_gbm_device(UNUSED struct vkr_physical_device *physical_dev)
+{
+   static once_flag gbm_once_flag = ONCE_FLAG_INIT;
+   call_once(&gbm_once_flag, vkr_gbm_device_init_once);
+
+   return vkr_gbm_dev;
+}
 
 void
 vkr_physical_device_destroy(struct vkr_context *ctx,
@@ -72,6 +96,18 @@ vkr_instance_lookup_physical_device(struct vkr_instance *instance,
 }
 
 static void
+vkr_physical_device_init_id_properties(struct vkr_physical_device *physical_dev)
+{
+   VkPhysicalDevice handle = physical_dev->base.handle.physical_device;
+   physical_dev->id_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES;
+   VkPhysicalDeviceProperties2 props2 = {
+      .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+      .pNext = &physical_dev->id_properties
+   };
+   vkGetPhysicalDeviceProperties2(handle, &props2);
+}
+
+static void
 vkr_physical_device_init_memory_properties(struct vkr_physical_device *physical_dev)
 {
    VkPhysicalDevice handle = physical_dev->base.handle.physical_device;
@@ -95,6 +131,47 @@ vkr_physical_device_init_memory_properties(struct vkr_physical_device *physical_
     * filter out VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT here if a memory type is
     * not always exportable.
     */
+
+   /* XXX is_dma_buf_fd_export_supported and is_opaque_fd_export_supported
+    * needs to be filled with a new extension which supports query fd export
+    * against the raw memory types. Currently, we workaround by checking
+    * external buffer properties before force-enabling either dma_buf or opaque
+    * fd path of device memory allocation.
+    */
+   physical_dev->is_dma_buf_fd_export_supported = false;
+   physical_dev->is_opaque_fd_export_supported = false;
+
+   VkPhysicalDeviceExternalBufferInfo info = {
+      .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_BUFFER_INFO,
+      .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+   };
+   VkExternalBufferProperties props = {
+      .sType = VK_STRUCTURE_TYPE_EXTERNAL_BUFFER_PROPERTIES,
+   };
+
+   if (physical_dev->EXT_external_memory_dma_buf) {
+      info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT,
+      vkGetPhysicalDeviceExternalBufferProperties(handle, &info, &props);
+      physical_dev->is_dma_buf_fd_export_supported =
+         (props.externalMemoryProperties.externalMemoryFeatures &
+          VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT) &&
+         (props.externalMemoryProperties.exportFromImportedHandleTypes &
+          VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT);
+   }
+
+   if (physical_dev->KHR_external_memory_fd) {
+      info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT,
+      vkGetPhysicalDeviceExternalBufferProperties(handle, &info, &props);
+      physical_dev->is_opaque_fd_export_supported =
+         (props.externalMemoryProperties.externalMemoryFeatures &
+          VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT) &&
+         (props.externalMemoryProperties.exportFromImportedHandleTypes &
+          VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT);
+   }
+
+   if (!physical_dev->is_dma_buf_fd_export_supported &&
+       !physical_dev->is_opaque_fd_export_supported)
+      physical_dev->gbm_device = vkr_physical_device_get_gbm_device(physical_dev);
 }
 
 static void
@@ -130,7 +207,7 @@ vkr_physical_device_init_extensions(struct vkr_physical_device *physical_dev,
       else if (!strcmp(props->extensionName, "VK_KHR_external_fence_fd"))
          physical_dev->KHR_external_fence_fd = true;
 
-      const uint32_t spec_ver = vn_info_extension_spec_version(props->extensionName);
+      const uint32_t spec_ver = vkr_extension_get_spec_version(props->extensionName);
       if (spec_ver) {
          if (props->specVersion > spec_ver)
             props->specVersion = spec_ver;
@@ -166,9 +243,18 @@ vkr_physical_device_init_properties(struct vkr_physical_device *physical_dev)
    vkGetPhysicalDeviceProperties(handle, &physical_dev->properties);
 
    VkPhysicalDeviceProperties *props = &physical_dev->properties;
+   props->apiVersion = vkr_api_version_cap_minor(props->apiVersion, VKR_MAX_API_VERSION);
    props->driverVersion = 0;
 
    /* TODO lie about props->pipelineCacheUUID and patch cache header */
+}
+
+static void
+vkr_physical_device_init_proc_table(struct vkr_physical_device *physical_dev,
+                                    struct vkr_instance *instance)
+{
+   vn_util_init_physical_device_proc_table(instance->base.handle.instance,
+                                           &physical_dev->proc_table);
 }
 
 static void
@@ -228,11 +314,13 @@ vkr_dispatch_vkEnumeratePhysicalDevices(struct vn_dispatch_context *dispatch,
 
       physical_dev->base.handle.physical_device = instance->physical_device_handles[i];
 
+      vkr_physical_device_init_proc_table(physical_dev, instance);
       vkr_physical_device_init_properties(physical_dev);
       physical_dev->api_version =
          MIN2(physical_dev->properties.apiVersion, instance->api_version);
       vkr_physical_device_init_extensions(physical_dev, instance);
       vkr_physical_device_init_memory_properties(physical_dev);
+      vkr_physical_device_init_id_properties(physical_dev);
 
       list_inithead(&physical_dev->devices);
 
@@ -273,10 +361,15 @@ vkr_dispatch_vkEnumeratePhysicalDeviceGroups(
    VkPhysicalDeviceGroupProperties *orig_props = args->pPhysicalDeviceGroupProperties;
    if (orig_props) {
       args->pPhysicalDeviceGroupProperties =
-         malloc(sizeof(*orig_props) * *args->pPhysicalDeviceGroupCount);
+         calloc(*args->pPhysicalDeviceGroupCount, sizeof(*orig_props));
       if (!args->pPhysicalDeviceGroupProperties) {
          args->ret = VK_ERROR_OUT_OF_HOST_MEMORY;
          return;
+      }
+
+      for (uint32_t i = 0; i < *args->pPhysicalDeviceGroupCount; i++) {
+         args->pPhysicalDeviceGroupProperties[i].sType =
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_GROUP_PROPERTIES;
       }
    }
 
@@ -568,6 +661,20 @@ vkr_dispatch_vkGetPhysicalDeviceExternalFenceProperties(
       args->physicalDevice, args->pExternalFenceInfo, args->pExternalFenceProperties);
 }
 
+static void
+vkr_dispatch_vkGetPhysicalDeviceCalibrateableTimeDomainsEXT(
+   UNUSED struct vn_dispatch_context *ctx,
+   struct vn_command_vkGetPhysicalDeviceCalibrateableTimeDomainsEXT *args)
+{
+   struct vkr_physical_device *physical_dev =
+      vkr_physical_device_from_handle(args->physicalDevice);
+   struct vn_physical_device_proc_table *vk = &physical_dev->proc_table;
+
+   vn_replace_vkGetPhysicalDeviceCalibrateableTimeDomainsEXT_args_handle(args);
+   args->ret = vk->GetPhysicalDeviceCalibrateableTimeDomainsEXT(
+      args->physicalDevice, args->pTimeDomainCount, args->pTimeDomains);
+}
+
 void
 vkr_context_init_physical_device_dispatch(struct vkr_context *ctx)
 {
@@ -617,4 +724,6 @@ vkr_context_init_physical_device_dispatch(struct vkr_context *ctx)
       vkr_dispatch_vkGetPhysicalDeviceExternalSemaphoreProperties;
    dispatch->dispatch_vkGetPhysicalDeviceExternalFenceProperties =
       vkr_dispatch_vkGetPhysicalDeviceExternalFenceProperties;
+   dispatch->dispatch_vkGetPhysicalDeviceCalibrateableTimeDomainsEXT =
+      vkr_dispatch_vkGetPhysicalDeviceCalibrateableTimeDomainsEXT;
 }

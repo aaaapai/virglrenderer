@@ -294,12 +294,6 @@ static struct vrend_format_table srgb_formats[] = {
   { VIRGL_FORMAT_R8_SRGB, GL_SR8_EXT, GL_RED, GL_UNSIGNED_BYTE, NO_SWIZZLE },
 };
 
-static struct vrend_format_table gl_srgb_formats[] =
-{
-  { VIRGL_FORMAT_B8G8R8X8_SRGB, GL_SRGB8_ALPHA8, GL_BGRA, GL_UNSIGNED_BYTE, RGB1_SWIZZLE },
-  { VIRGL_FORMAT_B8G8R8A8_SRGB, GL_SRGB8_ALPHA8, GL_BGRA, GL_UNSIGNED_BYTE, NO_SWIZZLE },
-};
-
 static struct vrend_format_table bit10_formats[] = {
   { VIRGL_FORMAT_B10G10R10X2_UNORM, GL_RGB10_A2, GL_BGRA, GL_UNSIGNED_INT_2_10_10_10_REV, RGB1_SWIZZLE },
   { VIRGL_FORMAT_B10G10R10A2_UNORM, GL_RGB10_A2, GL_BGRA, GL_UNSIGNED_INT_2_10_10_10_REV, NO_SWIZZLE },
@@ -327,6 +321,8 @@ static struct vrend_format_table bptc_formats[] = {
 static struct vrend_format_table gl_bgra_formats[] = {
   { VIRGL_FORMAT_B8G8R8X8_UNORM, GL_RGBA8, GL_BGRA, GL_UNSIGNED_BYTE, RGB1_SWIZZLE },
   { VIRGL_FORMAT_B8G8R8A8_UNORM, GL_RGBA8, GL_BGRA, GL_UNSIGNED_BYTE, NO_SWIZZLE },
+  { VIRGL_FORMAT_B8G8R8X8_SRGB, GL_SRGB8_ALPHA8, GL_BGRA, GL_UNSIGNED_BYTE, RGB1_SWIZZLE },
+  { VIRGL_FORMAT_B8G8R8A8_SRGB, GL_SRGB8_ALPHA8, GL_BGRA, GL_UNSIGNED_BYTE, NO_SWIZZLE },
 };
 
 static struct vrend_format_table gles_bgra_formats[] = {
@@ -474,7 +470,13 @@ static void vrend_add_formats(struct vrend_format_table *table, int num_entries)
 
     glTexImage2D(GL_TEXTURE_2D, 0, table[i].internalformat, 32, 32, 0, table[i].glformat, table[i].gltype, NULL);
     status = glGetError();
-    if (status == GL_INVALID_VALUE || status == GL_INVALID_ENUM || status == GL_INVALID_OPERATION) {
+    /* Currently possible errors are:
+     *  * GL_INVALID_VALUE
+     *  * GL_INVALID_ENUM
+     *  * GL_INVALID_OPERATION
+     *  * GL_OUT_OF_MEMORY
+     */
+    if (status != GL_NO_ERROR) {
       struct vrend_format_table *entry = NULL;
       uint8_t swizzle[4];
       binding = VIRGL_BIND_SAMPLER_VIEW | VIRGL_BIND_RENDER_TARGET;
@@ -502,6 +504,14 @@ static void vrend_add_formats(struct vrend_format_table *table, int num_entries)
       glDeleteTextures(1, &tex_id);
       glDeleteFramebuffers(1, &fb_id);
       continue;
+    }
+
+    if (is_desktop_gl) {
+      glTexImage2D(GL_TEXTURE_RECTANGLE_NV, 0, table[i].internalformat, 32, 32, 0, table[i].glformat, table[i].gltype, NULL);
+      status = glGetError();
+      if (status == GL_NO_ERROR) {
+        flags |= VIRGL_TEXTURE_CAN_TARGET_RECTANGLE;
+      }
     }
 
     if (table[i].format < VIRGL_FORMAT_MAX  && util_format_is_depth_or_stencil(table[i].format)) {
@@ -536,8 +546,8 @@ static void vrend_add_formats(struct vrend_format_table *table, int num_entries)
        formats that are supported as destination formats by glReadPixels. */
     if (is_desktop_gl ||
         (status == GL_FRAMEBUFFER_COMPLETE &&
-         ((is_depth && depth_stencil_formats_can_readback(table[i].format)) ||
-          color_format_can_readback(&table[i], gles_ver))))
+         (is_depth ? depth_stencil_formats_can_readback(table[i].format) :
+                     color_format_can_readback(&table[i], gles_ver))))
        flags |= VIRGL_TEXTURE_CAN_READBACK;
 
     glDeleteTextures(1, &tex_id);
@@ -603,7 +613,6 @@ void vrend_build_format_list_gl(void)
    */
   add_formats(gl_base_rgba_formats);
   add_formats(gl_bgra_formats);
-  add_formats(gl_srgb_formats);
 }
 
 void vrend_build_format_list_gles(void)
@@ -647,7 +656,35 @@ void vrend_check_texture_storage(struct vrend_format_table *table)
    }
 }
 
-bool vrend_check_framebuffer_mixed_color_attachements()
+void vrend_check_texture_multisample(struct vrend_format_table *table,
+                                     bool enable_storage)
+{
+   bool is_desktop_gl = epoxy_is_desktop_gl();
+   for (int i = 0; i < VIRGL_FORMAT_MAX_EXTENDED; i++) {
+      bool function_available =
+         (table[i].flags & VIRGL_TEXTURE_CAN_TEXTURE_STORAGE) ? enable_storage : is_desktop_gl;
+
+      if (table[i].internalformat != 0 &&
+          !(table[i].flags & VIRGL_TEXTURE_CAN_MULTISAMPLE) &&
+          function_available) {
+         GLuint tex_id;
+         glGenTextures(1, &tex_id);
+         glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, tex_id);
+         if (table[i].flags & VIRGL_TEXTURE_CAN_TEXTURE_STORAGE) {
+            glTexStorage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, 2,
+                                      table[i].internalformat, 32, 32, GL_TRUE);
+         } else {
+            glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, 2,
+                                    table[i].internalformat, 32, 32, GL_TRUE);
+         }
+         if (glGetError() == GL_NO_ERROR)
+            table[i].flags |= VIRGL_TEXTURE_CAN_MULTISAMPLE;
+         glDeleteTextures(1, &tex_id);
+      }
+   }
+}
+
+bool vrend_check_framebuffer_mixed_color_attachements(void)
 {
    GLuint tex_id[2];
    GLuint fb_id;
