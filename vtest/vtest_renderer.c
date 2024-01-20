@@ -171,9 +171,9 @@ static void vtest_signal_sync_queue(struct vtest_sync_queue *queue,
 static void vtest_write_context_fence(UNUSED void *cookie,
                                       UNUSED uint32_t ctx_id,
                                       UNUSED uint64_t queue_id,
-                                      void *fence_cookie)
+                                      uint64_t fence_id)
 {
-   struct vtest_sync_queue_submit *submit = fence_cookie;
+   struct vtest_sync_queue_submit *submit = (void*)(uintptr_t)fence_id;
    vtest_signal_sync_queue(submit->sync_queue, submit);
 }
 
@@ -1192,7 +1192,7 @@ int vtest_resource_create_blob(UNUSED uint32_t length_dw)
       return report_failed_call("virgl_renderer_resource_create_blob", ret);
    }
 
-   /* need dmabuf */
+   /* export blob */
    if (args.blob_mem == VIRGL_RENDERER_BLOB_MEM_HOST3D) {
       uint32_t fd_type;
       ret = virgl_renderer_resource_export_blob(res->res_id, &fd_type, &fd);
@@ -1200,7 +1200,8 @@ int vtest_resource_create_blob(UNUSED uint32_t length_dw)
          vtest_unref_resource(res);
          return report_failed_call("virgl_renderer_resource_export_blob", ret);
       }
-      if (fd_type != VIRGL_RENDERER_BLOB_FD_TYPE_DMABUF) {
+      if (fd_type != VIRGL_RENDERER_BLOB_FD_TYPE_DMABUF &&
+          fd_type != VIRGL_RENDERER_BLOB_FD_TYPE_SHM) {
          close(fd);
          vtest_unref_resource(res);
          return report_failed_call("virgl_renderer_resource_export_blob", -EINVAL);
@@ -1676,6 +1677,20 @@ static uint64_t vtest_gettime(uint32_t offset_ms)
    return ns + ns_per_ms * offset_ms;
 }
 
+static inline void write_ready(int fd)
+{
+#ifdef __GNUC__
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wunused-result"
+#endif
+   static const uint64_t val = 1;
+   write(fd, &val, sizeof(val));
+#ifdef __GNUC__
+#  pragma GCC diagnostic pop
+#endif
+}
+
+
 /* TODO this is slow */
 static void vtest_signal_sync(struct vtest_sync *sync, uint64_t value)
 {
@@ -1719,10 +1734,8 @@ static void vtest_signal_sync(struct vtest_sync *sync, uint64_t value)
          }
 
          if (is_ready) {
-            const uint64_t val = 1;
-
             list_del(&wait->head);
-            write(wait->fd, &val, sizeof(val));
+            write_ready(wait->fd);
             vtest_free_sync_wait(wait);
          }
       }
@@ -1980,8 +1993,7 @@ int vtest_sync_wait(uint32_t length_dw)
       is_ready = true;
 
    if (is_ready) {
-      const uint64_t val = 1;
-      write(wait->fd, &val, sizeof(val));
+      write_ready(wait->fd);
    }
 
    resp_buf[VTEST_CMD_LEN] = 0;
@@ -2060,7 +2072,7 @@ static int vtest_submit_cmd2_batch(struct vtest_context *ctx,
       ret = virgl_renderer_context_create_fence(ctx->ctx_id,
                                                 VIRGL_RENDERER_FENCE_FLAG_MERGEABLE,
                                                 batch->sync_queue_id,
-                                                submit);
+                                                (uintptr_t)submit);
       if (ret) {
          vtest_free_sync_queue_submit(submit);
          return ret;

@@ -314,6 +314,42 @@ static boolean parse_double( const char **pcur, uint32_t *val0, uint32_t *val1)
    return TRUE;
 }
 
+static boolean parse_int64( const char **pcur, uint32_t *val0, uint32_t *val1)
+{
+   const char *cur = *pcur;
+   union {
+      int64_t i64val;
+      uint32_t uval[2];
+   } v;
+
+   v.i64val = strtoll(cur, (char**)pcur, 0);
+   if (*pcur == cur)
+      return FALSE;
+
+   *val0 = v.uval[0];
+   *val1 = v.uval[1];
+
+   return TRUE;
+}
+
+static boolean parse_uint64( const char **pcur, uint32_t *val0, uint32_t *val1)
+{
+   const char *cur = *pcur;
+   union {
+      uint64_t u64val;
+      uint32_t uval[2];
+   } v;
+
+   v.u64val = strtoull(cur, (char**)pcur, 0);
+   if (*pcur == cur)
+      return FALSE;
+
+   *val0 = v.uval[0];
+   *val1 = v.uval[1];
+
+   return TRUE;
+}
+
 struct translate_ctx
 {
    const char *text;
@@ -544,7 +580,7 @@ parse_register_bracket(
    struct parsed_bracket *brackets)
 {
    const char *cur;
-   uint uindex;
+   int index;
 
    memset(brackets, 0, sizeof(struct parsed_bracket));
 
@@ -588,11 +624,11 @@ parse_register_bracket(
          brackets->index = 0;
    }
    else {
-      if (!parse_uint( &ctx->cur, &uindex )) {
-         report_error( ctx, "Expected literal unsigned integer" );
+      if (!parse_int( &ctx->cur, &index )) {
+         report_error( ctx, "Expected literal integer" );
          return FALSE;
       }
-      brackets->index = (int) uindex;
+      brackets->index = index;
       brackets->ind_file = TGSI_FILE_NULL;
       brackets->ind_index = 0;
    }
@@ -1223,6 +1259,14 @@ static boolean parse_immediate_data(struct translate_ctx *ctx, unsigned type,
       switch (type) {
       case TGSI_IMM_FLOAT64:
          ret = parse_double(&ctx->cur, &values[i].Uint, &values[i+1].Uint);
+         i++;
+         break;
+      case TGSI_IMM_INT64:
+         ret = parse_int64(&ctx->cur, &values[i].Uint, &values[i+1].Uint);
+         i++;
+         break;
+      case TGSI_IMM_UINT64:
+         ret = parse_uint64(&ctx->cur, &values[i].Uint, &values[i+1].Uint);
          i++;
          break;
       case TGSI_IMM_FLOAT32:
