@@ -22,12 +22,13 @@ vkr_dispatch_vkSetReplyCommandStreamMESA(
 
    att = vkr_context_get_resource(ctx, args->pStream->resourceId);
    if (!att) {
+      vkr_log("failed to set reply stream: invalid res_id %u", args->pStream->resourceId);
       vkr_cs_decoder_set_fatal(&ctx->decoder);
       return;
    }
 
-   vkr_cs_encoder_set_stream(&ctx->encoder, att->resource->iov, att->resource->iov_count,
-                             args->pStream->offset, args->pStream->size);
+   vkr_cs_encoder_set_stream(&ctx->encoder, att, args->pStream->offset,
+                             args->pStream->size);
 }
 
 static void
@@ -43,33 +44,37 @@ static void *
 copy_command_stream(struct vkr_context *ctx, const VkCommandStreamDescriptionMESA *stream)
 {
    struct vkr_resource_attachment *att;
-   struct virgl_resource *res;
 
    att = vkr_context_get_resource(ctx, stream->resourceId);
-   if (!att)
+   if (!att) {
+      vkr_log("failed to copy command stream: invalid res_id %u", stream->resourceId);
       return NULL;
-   res = att->resource;
+   }
 
    /* seek to offset */
    size_t iov_offset = stream->offset;
    const struct iovec *iov = NULL;
-   for (int i = 0; i < res->iov_count; i++) {
-      if (iov_offset < res->iov[i].iov_len) {
-         iov = &res->iov[i];
+   for (int i = 0; i < att->iov_count; i++) {
+      if (iov_offset < att->iov[i].iov_len) {
+         iov = &att->iov[i];
          break;
       }
-      iov_offset -= res->iov[i].iov_len;
+      iov_offset -= att->iov[i].iov_len;
    }
-   if (!iov)
+   if (!iov) {
+      vkr_log("failed to copy command stream: invalid offset %zu", stream->offset);
       return NULL;
+   }
 
    /* XXX until the decoder supports scatter-gather and is robust enough,
     * always make a copy in case the caller modifies the commands while we
     * parse
     */
    uint8_t *data = malloc(stream->size);
-   if (!data)
+   if (!data) {
+      vkr_log("failed to copy command stream: malloc(%zu) failed", stream->size);
       return NULL;
+   }
 
    uint32_t copied = 0;
    while (true) {
@@ -79,7 +84,8 @@ copy_command_stream(struct vkr_context *ctx, const VkCommandStreamDescriptionMES
       copied += s;
       if (copied == stream->size) {
          break;
-      } else if (iov == &res->iov[res->iov_count - 1]) {
+      } else if (iov == &att->iov[att->iov_count - 1]) {
+         vkr_log("failed to copy command stream: invalid size %zu", stream->size);
          free(data);
          return NULL;
       }
@@ -98,13 +104,15 @@ vkr_dispatch_vkExecuteCommandStreamsMESA(
 {
    struct vkr_context *ctx = dispatch->data;
 
-   if (!args->streamCount) {
+   if (unlikely(!args->streamCount)) {
+      vkr_log("failed to execute command streams: no stream specified");
       vkr_cs_decoder_set_fatal(&ctx->decoder);
       return;
    }
 
    /* note that nested vkExecuteCommandStreamsMESA is not allowed */
-   if (!vkr_cs_decoder_push_state(&ctx->decoder)) {
+   if (unlikely(!vkr_cs_decoder_push_state(&ctx->decoder))) {
+      vkr_log("failed to execute command streams: nested execution");
       vkr_cs_decoder_set_fatal(&ctx->decoder);
       return;
    }
@@ -153,12 +161,12 @@ lookup_ring(struct vkr_context *ctx, uint64_t ring_id)
 
 static bool
 vkr_ring_layout_init(struct vkr_ring_layout *layout,
-                     struct virgl_resource *res,
+                     const struct vkr_resource_attachment *att,
                      const VkRingCreateInfoMESA *info)
 {
    /* clang-format off */
    *layout = (struct vkr_ring_layout){
-      .resource = res,
+      .attachment = att,
       .head   = VKR_REGION_INIT(info->offset + info->headOffset, sizeof(uint32_t)),
       .tail   = VKR_REGION_INIT(info->offset + info->tailOffset, sizeof(uint32_t)),
       .status = VKR_REGION_INIT(info->offset + info->statusOffset, sizeof(uint32_t)),
@@ -177,7 +185,7 @@ vkr_ring_layout_init(struct vkr_ring_layout *layout,
    /* clang-format on */
 
    const struct vkr_region res_size =
-      VKR_REGION_INIT(0, vrend_get_iovec_size(res->iov, res->iov_count));
+      VKR_REGION_INIT(0, vrend_get_iovec_size(att->iov, att->iov_count));
    if (!vkr_region_is_valid(&res_region) || !vkr_region_is_within(&res_region, &res_size))
       return false;
 
@@ -241,7 +249,7 @@ vkr_dispatch_vkCreateRingMESA(struct vn_dispatch_context *dispatch,
    }
 
    struct vkr_ring_layout layout;
-   if (!vkr_ring_layout_init(&layout, att->resource, info)) {
+   if (!vkr_ring_layout_init(&layout, att, info)) {
       vkr_log("vkCreateRingMESA supplied with invalid buffer layout parameters");
       vkr_cs_decoder_set_fatal(&ctx->decoder);
       return;
@@ -270,7 +278,6 @@ vkr_dispatch_vkDestroyRingMESA(struct vn_dispatch_context *dispatch,
       return;
    }
 
-   list_del(&ring->head);
    vkr_ring_destroy(ring);
 }
 
@@ -312,6 +319,7 @@ vkr_dispatch_vkGetVenusExperimentalFeatureData100000MESA(
       .memoryResourceAllocationSize = VK_TRUE,
       .globalFencing = VK_FALSE,
       .largeRing = VK_TRUE,
+      .syncFdFencing = VK_TRUE,
    };
 
    vn_replace_vkGetVenusExperimentalFeatureData100000MESA_args_handle(args);

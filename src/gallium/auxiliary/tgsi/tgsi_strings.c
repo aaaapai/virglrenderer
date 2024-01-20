@@ -154,6 +154,7 @@ const char *tgsi_property_names[TGSI_PROPERTY_COUNT] =
    "CS_USER_DATA_COMPONENTS_AMD",
    "LAYER_VIEWPORT_RELATIVE",
    "FS_BLEND_EQUATION_ADVANCED",
+   "SEPARABLE_PROGRAM",
 };
 
 const char *tgsi_return_type_names[TGSI_RETURN_TYPE_COUNT] =
@@ -213,12 +214,14 @@ const char *tgsi_fs_coord_pixel_center_names[2] =
    "INTEGER"
 };
 
-const char *tgsi_immediate_type_names[4] =
+const char *tgsi_immediate_type_names[6] =
 {
    "FLT32",
    "UINT32",
    "INT32",
-   "FLT64"
+   "FLT64",
+   "UINT64",
+   "INT64",
 };
 
 const char *tgsi_memory_names[3] =
