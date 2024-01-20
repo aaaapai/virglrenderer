@@ -78,7 +78,7 @@ int vrend_winsys_init(uint32_t flags, int preferred_fd)
       use_context = CONTEXT_EGL;
 #else
       (void)preferred_fd;
-      vrend_printf( "EGL is not supported on this platform\n");
+      vrend_error( "EGL is not supported on this platform\n");
       return -1;
 #endif
    } else if (flags & VIRGL_RENDERER_USE_GLX) {
@@ -88,7 +88,7 @@ int vrend_winsys_init(uint32_t flags, int preferred_fd)
          return -1;
       use_context = CONTEXT_GLX;
 #else
-      vrend_printf( "GLX is not supported on this platform\n");
+      vrend_error( "GLX is not supported on this platform\n");
       return -1;
 #endif
    }
@@ -133,7 +133,7 @@ int vrend_winsys_init_external(void *egl_display)
       use_context = CONTEXT_EGL_EXTERNAL;
 #else
    (void)egl_display;
-   vrend_printf( "EGL is not supported on this platform\n");
+   vrend_error( "EGL is not supported on this platform\n");
    return -1;
 #endif
 
@@ -176,7 +176,7 @@ int vrend_winsys_make_context_current(virgl_renderer_gl_context ctx)
    if (use_context == CONTEXT_EGL) {
       ret = virgl_egl_make_context_current(egl, ctx);
       if (ret)
-         vrend_printf("%s: Error switching context: %s\n",
+         vrend_error("%s: Error switching context: %s\n",
                       __func__, virgl_egl_error_string(eglGetError()));
    }
 #endif
@@ -184,7 +184,7 @@ int vrend_winsys_make_context_current(virgl_renderer_gl_context ctx)
    if (use_context == CONTEXT_GLX) {
       ret = virgl_glx_make_context_current(glx_info, ctx);
       if (ret)
-         vrend_printf("%s: Error switching context\n", __func__);
+         vrend_error("%s: Error switching context\n", __func__);
    }
 #endif
    assert(!ret && "Failed to switch GL context");
