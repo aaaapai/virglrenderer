@@ -52,8 +52,11 @@ vkr_dispatch_vkGetBufferMemoryRequirements(
    UNUSED struct vn_dispatch_context *dispatch,
    struct vn_command_vkGetBufferMemoryRequirements *args)
 {
+   struct vkr_device *dev = vkr_device_from_handle(args->device);
+   struct vn_device_proc_table *vk = &dev->proc_table;
+
    vn_replace_vkGetBufferMemoryRequirements_args_handle(args);
-   vkGetBufferMemoryRequirements(args->device, args->buffer, args->pMemoryRequirements);
+   vk->GetBufferMemoryRequirements(args->device, args->buffer, args->pMemoryRequirements);
 }
 
 static void
@@ -61,25 +64,34 @@ vkr_dispatch_vkGetBufferMemoryRequirements2(
    UNUSED struct vn_dispatch_context *dispatch,
    struct vn_command_vkGetBufferMemoryRequirements2 *args)
 {
+   struct vkr_device *dev = vkr_device_from_handle(args->device);
+   struct vn_device_proc_table *vk = &dev->proc_table;
+
    vn_replace_vkGetBufferMemoryRequirements2_args_handle(args);
-   vkGetBufferMemoryRequirements2(args->device, args->pInfo, args->pMemoryRequirements);
+   vk->GetBufferMemoryRequirements2(args->device, args->pInfo, args->pMemoryRequirements);
 }
 
 static void
 vkr_dispatch_vkBindBufferMemory(UNUSED struct vn_dispatch_context *dispatch,
                                 struct vn_command_vkBindBufferMemory *args)
 {
+   struct vkr_device *dev = vkr_device_from_handle(args->device);
+   struct vn_device_proc_table *vk = &dev->proc_table;
+
    vn_replace_vkBindBufferMemory_args_handle(args);
    args->ret =
-      vkBindBufferMemory(args->device, args->buffer, args->memory, args->memoryOffset);
+      vk->BindBufferMemory(args->device, args->buffer, args->memory, args->memoryOffset);
 }
 
 static void
 vkr_dispatch_vkBindBufferMemory2(UNUSED struct vn_dispatch_context *dispatch,
                                  struct vn_command_vkBindBufferMemory2 *args)
 {
+   struct vkr_device *dev = vkr_device_from_handle(args->device);
+   struct vn_device_proc_table *vk = &dev->proc_table;
+
    vn_replace_vkBindBufferMemory2_args_handle(args);
-   args->ret = vkBindBufferMemory2(args->device, args->bindInfoCount, args->pBindInfos);
+   args->ret = vk->BindBufferMemory2(args->device, args->bindInfoCount, args->pBindInfos);
 }
 
 static void
@@ -88,9 +100,10 @@ vkr_dispatch_vkGetBufferOpaqueCaptureAddress(
    struct vn_command_vkGetBufferOpaqueCaptureAddress *args)
 {
    struct vkr_device *dev = vkr_device_from_handle(args->device);
+   struct vn_device_proc_table *vk = &dev->proc_table;
 
    vn_replace_vkGetBufferOpaqueCaptureAddress_args_handle(args);
-   args->ret = dev->GetBufferOpaqueCaptureAddress(args->device, args->pInfo);
+   args->ret = vk->GetBufferOpaqueCaptureAddress(args->device, args->pInfo);
 }
 
 static void
@@ -98,9 +111,10 @@ vkr_dispatch_vkGetBufferDeviceAddress(UNUSED struct vn_dispatch_context *dispatc
                                       struct vn_command_vkGetBufferDeviceAddress *args)
 {
    struct vkr_device *dev = vkr_device_from_handle(args->device);
+   struct vn_device_proc_table *vk = &dev->proc_table;
 
    vn_replace_vkGetBufferDeviceAddress_args_handle(args);
-   args->ret = dev->GetBufferDeviceAddress(args->device, args->pInfo);
+   args->ret = vk->GetBufferDeviceAddress(args->device, args->pInfo);
 }
 
 static void
@@ -115,6 +129,19 @@ vkr_dispatch_vkDestroyBufferView(struct vn_dispatch_context *dispatch,
                                  struct vn_command_vkDestroyBufferView *args)
 {
    vkr_buffer_view_destroy_and_remove(dispatch->data, args);
+}
+
+static void
+vkr_dispatch_vkGetDeviceBufferMemoryRequirements(
+   UNUSED struct vn_dispatch_context *ctx,
+   struct vn_command_vkGetDeviceBufferMemoryRequirements *args)
+{
+   struct vkr_device *dev = vkr_device_from_handle(args->device);
+   struct vn_device_proc_table *vk = &dev->proc_table;
+
+   vn_replace_vkGetDeviceBufferMemoryRequirements_args_handle(args);
+   vk->GetDeviceBufferMemoryRequirements(args->device, args->pInfo,
+                                         args->pMemoryRequirements);
 }
 
 void
@@ -133,6 +160,8 @@ vkr_context_init_buffer_dispatch(struct vkr_context *ctx)
    dispatch->dispatch_vkGetBufferOpaqueCaptureAddress =
       vkr_dispatch_vkGetBufferOpaqueCaptureAddress;
    dispatch->dispatch_vkGetBufferDeviceAddress = vkr_dispatch_vkGetBufferDeviceAddress;
+   dispatch->dispatch_vkGetDeviceBufferMemoryRequirements =
+      vkr_dispatch_vkGetDeviceBufferMemoryRequirements;
 }
 
 void
