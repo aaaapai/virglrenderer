@@ -27,14 +27,18 @@
  * and context creation tests.
  */
 
+#include "config.h"
+
 #include <check.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <virglrenderer.h>
+#ifdef ENABLE_GBM
 #include <gbm.h>
-#include <sys/uio.h>
+#endif
 #include "testvirgl.h"
 #include "virgl_hw.h"
+#include "vrend_iov.h"
 struct myinfo_struct {
   uint32_t test;
 };
@@ -378,10 +382,12 @@ START_TEST(virgl_test_get_resource_info)
   ret = virgl_renderer_resource_get_info(res.handle, &info);
   ck_assert_int_eq(ret, 0);
 
+#ifdef ENABLE_GBM
   ck_assert(info.drm_fourcc == GBM_FORMAT_ABGR8888 ||
             info.drm_fourcc == GBM_FORMAT_XBGR8888 ||
             info.drm_fourcc == GBM_FORMAT_ARGB8888 ||
             info.drm_fourcc == GBM_FORMAT_XRGB8888);
+#endif
   ck_assert_int_eq(info.virgl_format, res.format);
   ck_assert_int_eq(res.width, info.width);
   ck_assert_int_eq(res.height, info.height);
@@ -421,6 +427,69 @@ START_TEST(virgl_test_get_resource_info_no_res)
 
   ret = virgl_renderer_resource_get_info(1, &info);
   ck_assert_int_eq(ret, EINVAL);
+
+  virgl_renderer_resource_unref(1);
+}
+END_TEST
+
+START_TEST(virgl_test_get_resource_info_ext)
+{
+  int ret;
+  struct virgl_renderer_resource_create_args res;
+  struct virgl_renderer_resource_info_ext info_ext;
+
+  testvirgl_init_simple_2d_resource(&res, 1);
+  res.format = VIRGL_FORMAT_B8G8R8X8_UNORM;
+  ret = virgl_renderer_resource_create(&res, NULL, 0);
+  ck_assert_int_eq(ret, 0);
+
+  virgl_renderer_ctx_attach_resource(1, res.handle);
+
+  info_ext.version = VIRGL_RENDERER_RESOURCE_INFO_EXT_VERSION;
+  ret = virgl_renderer_resource_get_info_ext(res.handle, &info_ext);
+  ck_assert_int_eq(ret, 0);
+  ck_assert_int_eq(info_ext.version, VIRGL_RENDERER_RESOURCE_INFO_EXT_VERSION);
+
+#ifdef ENABLE_GBM
+  ck_assert(info_ext.base.drm_fourcc == GBM_FORMAT_ABGR8888 ||
+            info_ext.base.drm_fourcc == GBM_FORMAT_XBGR8888 ||
+            info_ext.base.drm_fourcc == GBM_FORMAT_ARGB8888 ||
+            info_ext.base.drm_fourcc == GBM_FORMAT_XRGB8888);
+#endif
+  if (info_ext.has_dmabuf_export) {
+    /* we can't check the value of the field "modifiers" since it depends on the system */
+    ck_assert_int_ge(info_ext.planes, 1);
+  }
+  ck_assert_int_eq(info_ext.base.virgl_format, res.format);
+  ck_assert_int_eq(res.width, info_ext.base.width);
+  ck_assert_int_eq(res.height, info_ext.base.height);
+  ck_assert_int_eq(res.depth, info_ext.base.depth);
+  ck_assert_int_eq(res.flags, info_ext.base.flags);
+  virgl_renderer_ctx_detach_resource(1, res.handle);
+
+  virgl_renderer_resource_unref(1);
+}
+END_TEST
+
+START_TEST(virgl_test_get_resource_info_ext_newer_version)
+{
+  int ret;
+  struct virgl_renderer_resource_create_args res;
+  struct virgl_renderer_resource_info_ext info_ext;
+
+  testvirgl_init_simple_2d_resource(&res, 1);
+  res.format = VIRGL_FORMAT_B8G8R8X8_UNORM;
+  ret = virgl_renderer_resource_create(&res, NULL, 0);
+  ck_assert_int_eq(ret, 0);
+
+  virgl_renderer_ctx_attach_resource(1, res.handle);
+
+  info_ext.version = VIRGL_RENDERER_RESOURCE_INFO_EXT_VERSION + 1;
+  ret = virgl_renderer_resource_get_info_ext(res.handle, &info_ext);
+  ck_assert_int_eq(ret, 0);
+  ck_assert_int_eq(info_ext.version, VIRGL_RENDERER_RESOURCE_INFO_EXT_VERSION);
+
+  virgl_renderer_ctx_detach_resource(1, res.handle);
 
   virgl_renderer_resource_unref(1);
 }
@@ -535,6 +604,8 @@ static Suite *virgl_init_suite(void)
   tcase_add_test(tc_core, virgl_test_get_resource_info);
   tcase_add_test(tc_core, virgl_test_get_resource_info_no_info);
   tcase_add_test(tc_core, virgl_test_get_resource_info_no_res);
+  tcase_add_test(tc_core, virgl_test_get_resource_info_ext);
+  tcase_add_test(tc_core, virgl_test_get_resource_info_ext_newer_version);
   tcase_add_test(tc_core, virgl_init_egl_create_ctx_create_attach_res);
   tcase_add_test(tc_core, virgl_init_egl_create_ctx_create_attach_res_detach_no_iovs);
 

@@ -69,16 +69,19 @@ struct tgsi_full_declaration
    struct tgsi_declaration_array Array;
 };
 
+#define TGSI_MAX_IMMEDIATE_PER_SLOT 4
+#define TGSI_MAX_PROPERTY_DATA_SLOTS 8
+
 struct tgsi_full_immediate
 {
    struct tgsi_immediate   Immediate;
-   union tgsi_immediate_data u[4];
+   union tgsi_immediate_data u[TGSI_MAX_IMMEDIATE_PER_SLOT];
 };
 
 struct tgsi_full_property
 {
    struct tgsi_property   Property;
-   struct tgsi_property_data u[8];
+   struct tgsi_property_data u[TGSI_MAX_PROPERTY_DATA_SLOTS];
 };
 
 #define TGSI_FULL_MAX_DST_REGISTERS 2
@@ -125,11 +128,11 @@ void
 tgsi_parse_free(
    struct tgsi_parse_context *ctx );
 
-boolean
+bool
 tgsi_parse_end_of_tokens(
    struct tgsi_parse_context *ctx );
 
-void
+bool
 tgsi_parse_token(
    struct tgsi_parse_context *ctx );
 

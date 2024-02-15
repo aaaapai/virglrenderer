@@ -68,7 +68,7 @@ vkr_validation_callback(UNUSED VkDebugUtilsMessageSeverityFlagBitsEXT messageSev
    if (!ctx->validate_fatal)
       return false;
 
-   vkr_cs_decoder_set_fatal(&ctx->decoder);
+   vkr_context_set_fatal(ctx);
 
    /* The spec says we "should" return false, because the meaning of true is
     * layer-defined and is reserved for layer development.  And we know that,
@@ -85,7 +85,7 @@ vkr_dispatch_vkCreateInstance(struct vn_dispatch_context *dispatch,
    struct vkr_context *ctx = dispatch->data;
 
    if (ctx->instance) {
-      vkr_cs_decoder_set_fatal(&ctx->decoder);
+      vkr_context_set_fatal(ctx);
       return;
    }
 
@@ -224,7 +224,9 @@ vkr_dispatch_vkCreateInstance(struct vn_dispatch_context *dispatch,
 }
 
 void
-vkr_instance_destroy(struct vkr_context *ctx, struct vkr_instance *instance)
+vkr_instance_destroy(struct vkr_context *ctx,
+                     struct vkr_instance *instance,
+                     bool destroy_vk)
 {
    for (uint32_t i = 0; i < instance->physical_device_count; i++) {
       struct vkr_physical_device *physical_dev = instance->physical_devices[i];
@@ -239,7 +241,8 @@ vkr_instance_destroy(struct vkr_context *ctx, struct vkr_instance *instance)
                                               instance->validation_messenger, NULL);
    }
 
-   vkDestroyInstance(instance->base.handle.instance, NULL);
+   if (destroy_vk || ctx->on_worker_thread)
+      vkDestroyInstance(instance->base.handle.instance, NULL);
 
    free(instance->physical_device_handles);
    free(instance->physical_devices);
@@ -255,11 +258,11 @@ vkr_dispatch_vkDestroyInstance(struct vn_dispatch_context *dispatch,
    struct vkr_instance *instance = vkr_instance_from_handle(args->instance);
 
    if (ctx->instance != instance) {
-      vkr_cs_decoder_set_fatal(&ctx->decoder);
+      vkr_context_set_fatal(ctx);
       return;
    }
 
-   vkr_instance_destroy(ctx, instance);
+   vkr_instance_destroy(ctx, instance, true);
 }
 
 void

@@ -15,6 +15,10 @@ files_mesa = files(
   'util/u_math.c',
 )
 
+if not with_host_windows
+   files_mesa += files('util/anon_file.c')
+endif
+
 deps_mesa = [
   m_dep,
   thread_dep,

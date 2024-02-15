@@ -28,7 +28,7 @@
 #include "util/u_debug.h"
 #include "tgsi_iterate.h"
 
-boolean
+bool
 tgsi_iterate_shader(
    const struct tgsi_token *tokens,
    struct tgsi_iterate_context *ctx )
@@ -36,7 +36,7 @@ tgsi_iterate_shader(
    struct tgsi_parse_context parse;
 
    if (tgsi_parse_init( &parse, tokens ) != TGSI_PARSE_OK)
-      return FALSE;
+      return false;
 
    ctx->processor = parse.FullHeader.Processor;
 
@@ -45,7 +45,8 @@ tgsi_iterate_shader(
          goto fail;
 
    while (!tgsi_parse_end_of_tokens( &parse )) {
-      tgsi_parse_token( &parse );
+       if (!tgsi_parse_token( &parse ))
+           return false;
 
       switch (parse.FullToken.Token.Type) {
       case TGSI_TOKEN_TYPE_INSTRUCTION:
@@ -82,9 +83,9 @@ tgsi_iterate_shader(
          goto fail;
 
    tgsi_parse_free( &parse );
-   return TRUE;
+   return true;
 
 fail:
    tgsi_parse_free( &parse );
-   return FALSE;
+   return false;
 }

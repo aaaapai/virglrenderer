@@ -63,19 +63,19 @@ type_map = {
 
 def bool_map(value):
     if value:
-        return "TRUE"
+        return "true"
     else:
-        return "FALSE"
+        return "false"
 
 
 swizzle_map = {
-    SWIZZLE_X:    "UTIL_FORMAT_SWIZZLE_X",
-    SWIZZLE_Y:    "UTIL_FORMAT_SWIZZLE_Y",
-    SWIZZLE_Z:    "UTIL_FORMAT_SWIZZLE_Z",
-    SWIZZLE_W:    "UTIL_FORMAT_SWIZZLE_W",
-    SWIZZLE_0:    "UTIL_FORMAT_SWIZZLE_0",
-    SWIZZLE_1:    "UTIL_FORMAT_SWIZZLE_1",
-    SWIZZLE_NONE: "UTIL_FORMAT_SWIZZLE_NONE",
+    SWIZZLE_X:    "PIPE_SWIZZLE_X",
+    SWIZZLE_Y:    "PIPE_SWIZZLE_Y",
+    SWIZZLE_Z:    "PIPE_SWIZZLE_Z",
+    SWIZZLE_W:    "PIPE_SWIZZLE_W",
+    SWIZZLE_0:    "PIPE_SWIZZLE_0",
+    SWIZZLE_1:    "PIPE_SWIZZLE_1",
+    SWIZZLE_NONE: "PIPE_SWIZZLE_NONE",
 }
 
 
@@ -136,7 +136,7 @@ def write_format_table(formats):
         print("   %s," % (format.name,))
         print("   \"%s\"," % (format.name,))
         print("   \"%s\"," % (format.short_name(),))
-        print("   {%u, %u, %u},\t/* block */" % (format.block_width, format.block_height, format.block_size()))
+        print("   {%u, %u, %u, %u},\t/* block */" % (format.block_width, format.block_height, format.block_depth, format.block_size()))
         print("   %s," % (layout_map(format.layout),))
         print("   %u,\t/* nr_channels */" % (format.nr_channels(),))
         print("   %s,\t/* is_array */" % (bool_map(format.is_array()),))

@@ -79,17 +79,16 @@ struct tgsi_opcode_info
    int post_indent:2;
    enum tgsi_output_mode output_mode:3;
    const char *mnemonic;
-   uint opcode;
 };
 
 const struct tgsi_opcode_info *
-tgsi_get_opcode_info( uint opcode );
+tgsi_get_opcode_info( unsigned opcode );
 
 const char *
-tgsi_get_opcode_name( uint opcode );
+tgsi_get_opcode_name( unsigned opcode );
 
 const char *
-tgsi_get_processor_name( uint processor );
+tgsi_get_processor_name( unsigned processor );
 
 enum tgsi_opcode_type {
    TGSI_TYPE_UNTYPED, /* for MOV */
@@ -103,10 +102,10 @@ enum tgsi_opcode_type {
 };
 
 enum tgsi_opcode_type
-tgsi_opcode_infer_src_type( uint opcode );
+tgsi_opcode_infer_src_type( unsigned opcode );
 
 enum tgsi_opcode_type
-tgsi_opcode_infer_dst_type( uint opcode );
+tgsi_opcode_infer_dst_type( unsigned opcode );
 
 #if defined __cplusplus
 }

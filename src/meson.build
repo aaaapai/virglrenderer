@@ -28,6 +28,8 @@ virgl_sources = [
    'iov.c',
    'virgl_context.c',
    'virgl_context.h',
+   'virgl_fence.c',
+   'virgl_fence.h',
    'virgl_hw.h',
    'virgl_protocol.h',
    'virgl_resource.c',
@@ -63,10 +65,12 @@ virglrenderer_sources = [
    'virglrenderer_hw.h',
 ]
 
-
-vrend_winsys_egl_sources = [
+vrend_winsys_gbm_sources = [
    'vrend_winsys_gbm.c',
    'vrend_winsys_gbm.h',
+]
+
+vrend_winsys_egl_sources = [
    'vrend_winsys_egl.c',
    'vrend_winsys_egl.h',
 ]
@@ -162,6 +166,7 @@ proxy_sources = [
 ]
 
 video_sources = [
+   'virgl_video_hw.h',
    'virgl_video.c',
    'virgl_video.h',
    'vrend_video.c',
@@ -184,11 +189,19 @@ if with_tracing == 'percetto'
    virgl_depends += [percetto_dep]
 endif
 
+if with_tracing == 'sysprof'
+   virgl_depends += [sysprof_dep]
+endif
+
 virgl_sources += vrend_sources
+
+if gbm_dep.found()
+   virgl_sources += vrend_winsys_gbm_sources
+   virgl_depends += [gbm_dep]
+endif
 
 if have_egl
    virgl_sources += vrend_winsys_egl_sources
-   virgl_depends += [gbm_dep]
 endif
 
 if have_glx
@@ -217,6 +230,10 @@ endif
 if with_video
   virgl_sources += video_sources
   virgl_depends += [libva_dep, libvadrm_dep]
+endif
+
+if with_host_windows
+  virgl_sources += ['mman_win32.c']
 endif
 
 libvirgl = static_library(
@@ -251,6 +268,7 @@ libvirglrenderer = library(
 pkg = import('pkgconfig')
 pkg.generate(libvirglrenderer,
    description: 'virgl GL renderer',
+   extra_cflags: pkg_cflags,
    subdirs: 'virgl'
 )
 
@@ -258,6 +276,19 @@ libvirglrenderer_dep = declare_dependency(
    link_with: libvirglrenderer,
    include_directories: libvirgl_inc,
    dependencies : [libvirgl_dep, gallium_dep]
+)
+
+# Version header
+version_conf = configuration_data()
+version_conf.set('VIRGL_MAJOR_VERSION', virgl_major_version)
+version_conf.set('VIRGL_MINOR_VERSION', virgl_minor_version)
+version_conf.set('VIRGL_MICRO_VERSION', virgl_micro_version)
+
+configure_file(
+  input: 'virgl-version.h.meson',
+  output: 'virgl-version.h',
+  configuration: version_conf,
+  install_dir: join_paths(get_option('includedir'), 'virgl'),
 )
 
 install_headers('virglrenderer.h', subdir : 'virgl')

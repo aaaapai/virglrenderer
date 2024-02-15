@@ -27,7 +27,6 @@
 #include <stdio.h>
 #include <assert.h>
 
-#include "c99_compat.h"
 #include "c11_compat.h"
 
 #include <stdint.h>
@@ -204,7 +203,11 @@ do {                       \
  * packed, to trade off performance for space.
  */
 #ifdef HAVE_FUNC_ATTRIBUTE_PACKED
-#define PACKED __attribute__((__packed__))
+#  if defined(__MINGW32__) || defined(__MINGW64__)
+#    define PACKED __attribute__((gcc_struct,__packed__))
+#  else
+#    define PACKED __attribute__((__packed__))
+#  endif
 #else
 #define PACKED
 #endif

@@ -40,6 +40,7 @@
 #define TRACE_WITH_PERFETTO 1
 #define TRACE_WITH_STDERR 2
 #define TRACE_WITH_PERCETTO 3
+#define TRACE_WITH_SYSPROF 4
 
 #define BIT(n)                   (UINT32_C(1) << (n))
 
@@ -58,23 +59,54 @@ static inline bool is_only_bit(uint32_t mask, uint32_t bit)
     return (mask == bit);
 }
 
-unsigned hash_func_u32(void *key);
+uint32_t hash_func_u32(const void *key);
 
-int compare_func(void *key1, void *key2);
+bool equal_func(const void *key1, const void *key2);
 
 bool has_eventfd(void);
 int create_eventfd(unsigned int initval);
 int write_eventfd(int fd, uint64_t val);
 void flush_eventfd(int fd);
 
-virgl_debug_callback_type virgl_log_set_logger(virgl_debug_callback_type logger);
-void virgl_logv(const char *fmt, va_list va);
+void virgl_override_log_level(enum virgl_log_level_flags log_level);
+void virgl_log_set_handler(virgl_log_callback_type log_cb,
+                           void *user_data,
+                           virgl_free_data_callback_type free_data_cb);
 
-static inline void PRINTFLIKE(1, 2) virgl_log(const char *fmt, ...)
+void virgl_logv(enum virgl_log_level_flags log_level, const char *fmt, va_list va);
+void virgl_prefixed_logv(const char *domain,
+                         enum virgl_log_level_flags log_level,
+                         const char *fmt, va_list va);
+
+static inline void PRINTFLIKE(1, 2) virgl_warn(const char *fmt, ...)
 {
    va_list va;
    va_start(va, fmt);
-   virgl_logv(fmt, va);
+   virgl_logv(VIRGL_LOG_LEVEL_WARNING, fmt, va);
+   va_end(va);
+}
+
+static inline void PRINTFLIKE(1, 2) virgl_debug(const char *fmt, ...)
+{
+   va_list va;
+   va_start(va, fmt);
+   virgl_logv(VIRGL_LOG_LEVEL_DEBUG, fmt, va);
+   va_end(va);
+}
+
+static inline void PRINTFLIKE(1, 2) virgl_info(const char *fmt, ...)
+{
+   va_list va;
+   va_start(va, fmt);
+   virgl_logv(VIRGL_LOG_LEVEL_INFO, fmt, va);
+   va_end(va);
+}
+
+static inline void PRINTFLIKE(1, 2) virgl_error(const char *fmt, ...)
+{
+   va_list va;
+   va_start(va, fmt);
+   virgl_logv(VIRGL_LOG_LEVEL_ERROR, fmt, va);
    va_end(va);
 }
 
@@ -94,36 +126,40 @@ void trace_init(void);
 
 PERCETTO_CATEGORY_DECLARE(VIRGL_PERCETTO_CATEGORIES)
 
-#define TRACE_SCOPE(SCOPE) TRACE_EVENT(virgl, SCOPE)
-/* Trace high frequency events (tracing may impact performance). */
-#define TRACE_SCOPE_SLOW(SCOPE) TRACE_EVENT(virgls, SCOPE)
+static inline void *
+trace_begin(const char *scope)
+{
+   TRACE_EVENT_BEGIN(virgl, scope);
+   return NULL;
+}
 
-#define TRACE_SCOPE_BEGIN(SCOPE) TRACE_EVENT_BEGIN(virgl, SCOPE)
-#define TRACE_SCOPE_END(SCOPE) do { TRACE_EVENT_END(virgl); (void)SCOPE; } while (0)
+static inline void
+trace_end(UNUSED void **scope)
+{
+   TRACE_EVENT_END(virgl);
+}
 
 #else
 
-const char *trace_begin(const char *scope);
-void trace_end(const char **scope);
-
-#define TRACE_SCOPE(SCOPE) \
-   const char *trace_dummy __attribute__((cleanup (trace_end), unused)) = \
-   trace_begin(SCOPE)
-
-#define TRACE_SCOPE_SLOW(SCOPE) TRACE_SCOPE(SCOPE)
-
-#define TRACE_SCOPE_BEGIN(SCOPE) trace_begin(SCOPE);
-#define TRACE_SCOPE_END(SCOPE)  trace_end(&SCOPE);
+void *trace_begin(const char *scope);
+void trace_end(void **scope);
 
 #endif /* ENABLE_TRACING == TRACE_WITH_PERCETTO */
+
+#define TRACE_SCOPE(SCOPE) \
+   void *trace_dummy __attribute__((cleanup (trace_end), unused)) = \
+   trace_begin(SCOPE)
+#define TRACE_SCOPE_SLOW(SCOPE) TRACE_SCOPE(SCOPE)
+#define TRACE_SCOPE_BEGIN(SCOPE) trace_begin(SCOPE)
+#define TRACE_SCOPE_END(SCOPE_OBJ)  trace_end(&SCOPE_OBJ)
 
 #else
 #define TRACE_INIT()
 #define TRACE_FUNC()
 #define TRACE_SCOPE(SCOPE)
 #define TRACE_SCOPE_SLOW(SCOPE)
-#define TRACE_SCOPE_BEGIN(SCOPE, VAR)
-#define TRACE_SCOPE_END(VAR)
+#define TRACE_SCOPE_BEGIN(SCOPE) NULL
+#define TRACE_SCOPE_END(SCOPE_OBJ) (void)SCOPE_OBJ
 #endif /* ENABLE_TRACING */
 
 #endif /* VIRGL_UTIL_H */

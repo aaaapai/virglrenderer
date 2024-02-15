@@ -33,15 +33,16 @@
 #include "tgsi_info.h"
 #include "tgsi_iterate.h"
 
+#include <stdint.h>
 
-DEBUG_GET_ONCE_BOOL_OPTION(print_sanity, "TGSI_PRINT_SANITY", FALSE)
+DEBUG_GET_ONCE_BOOL_OPTION(print_sanity, "TGSI_PRINT_SANITY", false)
 
 
 typedef struct {
-   uint file : 28;
+   uint32_t file : 28;
    /* max 2 dimensions */
-   uint dimensions : 4;
-   uint indices[2];
+   uint32_t dimensions : 4;
+   unsigned indices[2];
 } scan_register;
 
 struct sanity_check_ctx
@@ -51,15 +52,15 @@ struct sanity_check_ctx
    struct cso_hash *regs_used;
    struct cso_hash *regs_ind_used;
 
-   uint num_imms;
-   uint num_instructions;
-   uint index_of_END;
+   unsigned num_imms;
+   unsigned num_instructions;
+   unsigned index_of_END;
 
-   uint errors;
-   uint warnings;
-   uint implied_array_size;
+   unsigned errors;
+   unsigned warnings;
+   unsigned implied_array_size;
 
-   boolean print;
+   bool print;
 };
 
 static inline unsigned
@@ -74,7 +75,7 @@ scan_register_key(const scan_register *reg)
 
 static void
 fill_scan_register1d(scan_register *reg,
-                     uint file, uint index)
+                     unsigned file, unsigned index)
 {
    reg->file = file;
    reg->dimensions = 1;
@@ -84,7 +85,8 @@ fill_scan_register1d(scan_register *reg,
 
 static void
 fill_scan_register2d(scan_register *reg,
-                     uint file, uint index1, uint index2)
+                     unsigned file,
+                     unsigned index1, unsigned index2)
 {
    reg->file = file;
    reg->dimensions = 2;
@@ -184,19 +186,19 @@ report_warning(
    ctx->warnings++;
 }
 
-static boolean
+static bool
 check_file_name(
    struct sanity_check_ctx *ctx,
-   uint file )
+   unsigned file )
 {
    if (file <= TGSI_FILE_NULL || file >= TGSI_FILE_COUNT) {
       report_error( ctx, "(%u): Invalid register file name", file );
-      return FALSE;
+      return false;
    }
-   return TRUE;
+   return true;
 }
 
-static boolean
+static bool
 is_register_declared(
    struct sanity_check_ctx *ctx,
    const scan_register *reg)
@@ -204,13 +206,13 @@ is_register_declared(
    void *data = cso_hash_find_data_from_template(
       ctx->regs_decl, scan_register_key(reg),
       (void*)reg, sizeof(scan_register));
-   return  data ? TRUE : FALSE;
+   return  data ? true : false;
 }
 
-static boolean
+static bool
 is_any_register_declared(
    struct sanity_check_ctx *ctx,
-   uint file )
+   unsigned file )
 {
    struct cso_hash_iter iter =
       cso_hash_first_node(ctx->regs_decl);
@@ -218,14 +220,14 @@ is_any_register_declared(
    while (!cso_hash_iter_is_null(iter)) {
       scan_register *reg = (scan_register *)cso_hash_iter_data(iter);
       if (reg->file == file)
-         return TRUE;
+         return true;
       iter = cso_hash_iter_next(iter);
    }
 
-   return FALSE;
+   return false;
 }
 
-static boolean
+static bool
 is_register_used(
    struct sanity_check_ctx *ctx,
    scan_register *reg)
@@ -233,11 +235,11 @@ is_register_used(
    void *data = cso_hash_find_data_from_template(
       ctx->regs_used, scan_register_key(reg),
       reg, sizeof(scan_register));
-   return  data ? TRUE : FALSE;
+   return  data ? true : false;
 }
 
 
-static boolean
+static bool
 is_ind_register_used(
    struct sanity_check_ctx *ctx,
    scan_register *reg)
@@ -260,16 +262,16 @@ static const char *file_names[TGSI_FILE_COUNT] =
    "RES"
 };
 
-static boolean
+static bool
 check_register_usage(
    struct sanity_check_ctx *ctx,
    scan_register *reg,
    const char *name,
-   boolean indirect_access )
+   bool indirect_access )
 {
    if (!check_file_name( ctx, reg->file )) {
       FREE(reg);
-      return FALSE;
+      return false;
    }
 
    if (indirect_access) {
@@ -300,17 +302,17 @@ check_register_usage(
       else
          FREE(reg);
    }
-   return TRUE;
+   return true;
 }
 
-static boolean
+static bool
 iter_instruction(
    struct tgsi_iterate_context *iter,
    struct tgsi_full_instruction *inst )
 {
    struct sanity_check_ctx *ctx = (struct sanity_check_ctx *) iter;
    const struct tgsi_opcode_info *info;
-   uint i;
+   unsigned i;
 
    if (inst->Instruction.Opcode == TGSI_OPCODE_END) {
       if (ctx->index_of_END != ~0u) {
@@ -322,7 +324,7 @@ iter_instruction(
    info = tgsi_get_opcode_info( inst->Instruction.Opcode );
    if (info == NULL) {
       report_error( ctx, "(%u): Invalid instruction opcode", inst->Instruction.Opcode );
-      return TRUE;
+      return true;
    }
 
    if (info->num_dst != inst->Instruction.NumDstRegs) {
@@ -341,7 +343,7 @@ iter_instruction(
          ctx,
          reg,
          "destination",
-         FALSE );
+         false );
       if (!inst->Dst[i].Register.WriteMask) {
          report_error(ctx, "Destination register has empty writemask");
       }
@@ -352,7 +354,7 @@ iter_instruction(
          ctx,
          reg,
          "source",
-         (boolean)inst->Src[i].Register.Indirect );
+         (bool)inst->Src[i].Register.Indirect );
       if (inst->Src[i].Register.Indirect) {
          scan_register *ind_reg = MALLOC(sizeof(scan_register));
 
@@ -363,13 +365,13 @@ iter_instruction(
             ctx,
             ind_reg,
             "indirect",
-            FALSE );
+            false );
       }
    }
 
    ctx->num_instructions++;
 
-   return TRUE;
+   return true;
 }
 
 static void
@@ -385,14 +387,14 @@ check_and_declare(struct sanity_check_ctx *ctx,
 }
 
 
-static boolean
+static bool
 iter_declaration(
    struct tgsi_iterate_context *iter,
    struct tgsi_full_declaration *decl )
 {
    struct sanity_check_ctx *ctx = (struct sanity_check_ctx *) iter;
-   uint file;
-   uint i;
+   unsigned file;
+   unsigned i;
 
    /* No declarations allowed after the first instruction.
     */
@@ -404,13 +406,13 @@ iter_declaration(
     */
    file = decl->Declaration.File;
    if (!check_file_name( ctx, file ))
-      return TRUE;
+      return true;
    for (i = decl->Range.First; i <= decl->Range.Last; i++) {
       /* declared TGSI_FILE_INPUT's for geometry processor
        * have an implied second dimension */
       if (file == TGSI_FILE_INPUT &&
           ctx->iter.processor.Processor == TGSI_PROCESSOR_GEOMETRY) {
-         uint vert;
+         unsigned vert;
          for (vert = 0; vert < ctx->implied_array_size; ++vert) {
             scan_register *reg = MALLOC(sizeof(scan_register));
             fill_scan_register2d(reg, file, i, vert);
@@ -427,10 +429,10 @@ iter_declaration(
       }
    }
 
-   return TRUE;
+   return true;
 }
 
-static boolean
+static bool
 iter_immediate(
    struct tgsi_iterate_context *iter,
    struct tgsi_full_immediate *imm )
@@ -457,14 +459,14 @@ iter_immediate(
        imm->Immediate.DataType != TGSI_IMM_INT32 &&
        imm->Immediate.DataType != TGSI_IMM_FLOAT64) {
       report_error( ctx, "(%u): Invalid immediate data type", imm->Immediate.DataType );
-      return TRUE;
+      return true;
    }
 
-   return TRUE;
+   return true;
 }
 
 
-static boolean
+static bool
 iter_property(
    struct tgsi_iterate_context *iter,
    struct tgsi_full_property *prop )
@@ -475,10 +477,10 @@ iter_property(
        prop->Property.PropertyName == TGSI_PROPERTY_GS_INPUT_PRIM) {
       ctx->implied_array_size = u_vertices_per_prim(prop->u[0].Data);
    }
-   return TRUE;
+   return true;
 }
 
-static boolean
+static bool
 epilog(
    struct tgsi_iterate_context *iter )
 {
@@ -511,7 +513,7 @@ epilog(
    if (ctx->errors || ctx->warnings)
       debug_printf( "%u errors, %u warnings\n", ctx->errors, ctx->warnings );
 
-   return TRUE;
+   return true;
 }
 
 static void
@@ -527,12 +529,12 @@ regs_hash_destroy(struct cso_hash *hash)
    cso_hash_delete(hash);
 }
 
-boolean
+bool
 tgsi_sanity_check(
    const struct tgsi_token *tokens )
 {
    struct sanity_check_ctx ctx;
-   boolean retval;
+   bool retval;
 
    ctx.iter.prolog = NULL;
    ctx.iter.iterate_instruction = iter_instruction;
@@ -558,8 +560,8 @@ tgsi_sanity_check(
    regs_hash_destroy(ctx.regs_decl);
    regs_hash_destroy(ctx.regs_used);
    regs_hash_destroy(ctx.regs_ind_used);
-   if (retval == FALSE)
-      return FALSE;
+   if (retval == false)
+      return false;
 
    return ctx.errors == 0;
 }

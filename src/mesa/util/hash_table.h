@@ -31,7 +31,6 @@
 #include <stdlib.h>
 #include <inttypes.h>
 #include <stdbool.h>
-#include "c99_compat.h"
 #include "macros.h"
 
 #ifdef __cplusplus
@@ -165,17 +164,14 @@ hash_table_call_foreach(struct hash_table *ht,
 /**
  * Hash table wrapper which supports 64-bit keys.
  */
-struct hash_table_u64 {
-   struct hash_table *table;
-   void *freed_key_data;
-   void *deleted_key_data;
-};
+struct hash_table_u64;
 
 struct hash_table_u64 *
 _mesa_hash_table_u64_create(void *mem_ctx);
 
 void
-_mesa_hash_table_u64_destroy(struct hash_table_u64 *ht);
+_mesa_hash_table_u64_destroy(struct hash_table_u64 *ht,
+                             void (*delete_function)(struct hash_entry *entry));
 
 void
 _mesa_hash_table_u64_insert(struct hash_table_u64 *ht, uint64_t key,
@@ -189,6 +185,13 @@ _mesa_hash_table_u64_remove(struct hash_table_u64 *ht, uint64_t key);
 
 void
 _mesa_hash_table_u64_clear(struct hash_table_u64 *ht);
+
+void
+hash_table_u64_call_foreach(struct hash_table_u64 *ht,
+                            void (*callback)(const void *key,
+                                             void *data,
+                                             void *closure),
+                            void *closure);
 
 #ifdef __cplusplus
 } /* extern C */

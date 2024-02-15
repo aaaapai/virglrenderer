@@ -39,7 +39,7 @@ option(
 )
 
 option(
-  'venus-experimental',
+  'venus',
   type : 'boolean',
   value : 'false',
   description : 'enable support for venus'
@@ -59,9 +59,13 @@ option(
   description : 'treat host-side gl errors as fatal'
 )
 
-# NOTE: expecting some slight fencing changes between host and guest
-# once ring_idx is plumbed through crosvm (ie. synchronizing between
-# host CPU and guest CPU will be a separate fence timeline)
+option(
+  'drm',
+  type : 'feature',
+  value : 'auto',
+  description : 'enable support for drm'
+)
+
 option(
   'drm-msm-experimental',
   type : 'boolean',
@@ -73,7 +77,7 @@ option(
   'render-server',
   type : 'boolean',
   value : 'false',
-  description : 'enable support for render server'
+  description : 'DEPRECATED: render server is enabled by venus automatically'
 )
 
 option(
@@ -116,6 +120,13 @@ option(
   'tracing',
   type : 'combo',
   value : 'none',
-  choices : [ 'percetto', 'perfetto', 'stderr', 'none' ],
+  choices : [ 'percetto', 'perfetto', 'sysprof', 'stderr', 'none' ],
   description : 'enable emitting traces using the selected backend'
+)
+
+option(
+  'unstable-apis',
+  type : 'boolean',
+  value : 'false',
+  description : 'enable unstable apis'
 )

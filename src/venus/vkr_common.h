@@ -19,18 +19,19 @@
 #include <string.h>
 
 #include "c11/threads.h"
-#include "pipe/p_compiler.h"
 #include "util/hash_table.h"
+#include "util/list.h"
+#include "util/macros.h"
+#include "util/os_file.h"
 #include "util/os_misc.h"
-#include "util/u_double_list.h"
 #include "util/u_math.h"
 #include "util/u_memory.h"
 #include "util/u_pointer.h"
 #include "util/u_thread.h"
 #include "venus-protocol/vulkan.h"
+#include "virgl_context.h"
 #include "virgl_util.h"
 #include "virglrenderer.h"
-#include "vrend_debug.h"
 
 #include "vkr_renderer.h"
 
@@ -61,6 +62,7 @@
 
 struct vn_info_extension_table;
 struct vkr_context;
+struct vkr_ring;
 struct vkr_instance;
 struct vkr_physical_device;
 struct vkr_device;
@@ -152,8 +154,10 @@ struct vkr_region {
    size_t end;
 };
 
-extern uint32_t vkr_renderer_flags;
 extern uint32_t vkr_debug_flags;
+
+void
+vkr_debug_init(void);
 
 void
 vkr_log(const char *fmt, ...);
@@ -249,6 +253,7 @@ vkr_is_recognized_object_type(VkObjectType type)
    case VK_OBJECT_TYPE_DESCRIPTOR_UPDATE_TEMPLATE:
       return true;
    default:
+      vkr_log("unrecognized object type %u", type);
       return false;
    }
 }

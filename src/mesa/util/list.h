@@ -41,13 +41,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <assert.h>
-#include "c99_compat.h"
 
-#ifdef DEBUG
-#  define list_assert(cond, msg)  assert(cond && msg)
-#else
-#  define list_assert(cond, msg)  (void)(0 && (cond))
-#endif
+#define list_assert(cond, msg)  assert(cond && msg)
 
 struct list_head
 {

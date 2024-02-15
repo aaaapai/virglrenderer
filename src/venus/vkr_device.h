@@ -8,7 +8,8 @@
 
 #include "venus-protocol/vn_protocol_renderer_util.h"
 
-#include "vkr_common.h"
+#include "venus-protocol/vn_protocol_renderer_util.h"
+
 #include "vkr_context.h"
 
 struct vkr_device {
@@ -31,7 +32,7 @@ void
 vkr_context_init_device_dispatch(struct vkr_context *ctx);
 
 void
-vkr_device_destroy(struct vkr_context *ctx, struct vkr_device *dev);
+vkr_device_destroy(struct vkr_context *ctx, struct vkr_device *dev, bool destroy_vk);
 
 static inline bool
 vkr_device_should_track_object(const struct vkr_object *obj)

@@ -8,6 +8,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+#include "util/u_debug.h"
 #include "venus-protocol/vn_protocol_renderer_info.h"
 
 #include "vkr_context.h"
@@ -74,7 +75,7 @@ static const struct vn_info_extension_table vkr_extension_table = {
    .KHR_shader_integer_dot_product = true,
    .KHR_shader_non_semantic_info = true,
    .KHR_shader_terminate_invocation = true,
-   .KHR_synchronization2 = false,
+   .KHR_synchronization2 = true,
    .KHR_zero_initialize_workgroup_memory = true,
    .EXT_4444_formats = true,
    .EXT_extended_dynamic_state = true,
@@ -95,63 +96,72 @@ static const struct vn_info_extension_table vkr_extension_table = {
    .KHR_external_fence_fd = true,
    .KHR_external_memory_fd = true,
    .KHR_external_semaphore_fd = true,
+   .KHR_pipeline_library = true,
+   .KHR_push_descriptor = true,
+   .KHR_shader_clock = true,
    /* EXT extensions */
+   .EXT_border_color_swizzle = true,
    .EXT_calibrated_timestamps = true,
+   .EXT_color_write_enable = true,
    .EXT_conservative_rasterization = true,
    .EXT_conditional_rendering = true,
    .EXT_custom_border_color = true,
+   .EXT_depth_clip_control = true,
    .EXT_depth_clip_enable = true,
+   .EXT_dynamic_rendering_unused_attachments = true,
+   .EXT_extended_dynamic_state3 = true,
    .EXT_external_memory_dma_buf = true,
+   .EXT_fragment_shader_interlock = true,
+   .EXT_graphics_pipeline_library = true,
+   .EXT_image_2d_view_of_3d = true,
    .EXT_image_drm_format_modifier = true,
    .EXT_image_view_min_lod = true,
    .EXT_index_type_uint8 = true,
    .EXT_line_rasterization = true,
+   .EXT_load_store_op_none = true,
+   .EXT_memory_budget = true,
    .EXT_multi_draw = true,
+   .EXT_mutable_descriptor_type = true,
+   .EXT_non_seamless_cube_map = true,
+   .EXT_pci_bus_info = true,
    .EXT_primitive_topology_list_restart = true,
+   .EXT_primitives_generated_query = true,
    .EXT_provoking_vertex = true,
    .EXT_queue_family_foreign = true,
+   .EXT_rasterization_order_attachment_access = true,
    .EXT_robustness2 = true,
    .EXT_shader_stencil_export = true,
+   .EXT_shader_subgroup_ballot = true,
    .EXT_transform_feedback = true,
    .EXT_vertex_attribute_divisor = true,
+   .EXT_vertex_input_dynamic_state = true,
    /* vendor extensions */
    .VALVE_mutable_descriptor_type = true,
 };
 
+static const struct debug_named_value vkr_debug_options[] = {
+   { "validate", VKR_DEBUG_VALIDATE, "Force enabling the validation layer" },
+   DEBUG_NAMED_VALUE_END
+};
+
+uint32_t vkr_debug_flags;
+
+DEBUG_GET_ONCE_FLAGS_OPTION(vkr_debug_flags, "VKR_DEBUG", vkr_debug_options, 0)
+
+void
+vkr_debug_init(void)
+{
+   vkr_debug_flags = debug_get_option_vkr_debug_flags();
+}
+
 void
 vkr_log(const char *fmt, ...)
 {
-   const char prefix[] = "vkr: ";
-   char line[1024];
-   size_t len;
    va_list va;
-   int ret;
-
-   len = ARRAY_SIZE(prefix) - 1;
-   memcpy(line, prefix, len);
 
    va_start(va, fmt);
-   ret = vsnprintf(line + len, ARRAY_SIZE(line) - len, fmt, va);
+   virgl_prefixed_logv("vkr", VIRGL_LOG_LEVEL_INFO, fmt, va);
    va_end(va);
-
-   if (ret < 0) {
-      const char log_error[] = "log error";
-      memcpy(line + len, log_error, ARRAY_SIZE(log_error) - 1);
-      len += ARRAY_SIZE(log_error) - 1;
-   } else if ((size_t)ret < ARRAY_SIZE(line) - len) {
-      len += ret;
-   } else {
-      len = ARRAY_SIZE(line) - 1;
-   }
-
-   /* make room for newline */
-   if (len + 1 >= ARRAY_SIZE(line))
-      len--;
-
-   line[len++] = '\n';
-   line[len] = '\0';
-
-   virgl_log("%s", line);
 }
 
 void
@@ -225,5 +235,5 @@ object_array_init(struct vkr_context *ctx,
       arr->objects[i] = obj;
    }
 
-   return arr;
+   return true;
 }

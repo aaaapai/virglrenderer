@@ -26,7 +26,7 @@
  **************************************************************************/
 
 #include "util/u_debug.h"
-#include "pipe/p_format.h"
+#include "util/u_format.h"
 #include "pipe/p_shader_tokens.h"
 #include "tgsi_build.h"
 #include "tgsi_parse.h"
@@ -379,6 +379,8 @@ tgsi_default_full_declaration( void )
 {
    struct tgsi_full_declaration  full_declaration;
 
+   full_declaration.Dim.Index2D = 0;
+   full_declaration.Dim.Padding = 0;
    full_declaration.Declaration  = tgsi_default_declaration();
    full_declaration.Range = tgsi_default_declaration_range();
    full_declaration.Semantic = tgsi_default_declaration_semantic();
@@ -423,6 +425,9 @@ tgsi_build_full_declaration(
       return 0;
    dr = (struct tgsi_declaration_range *) &tokens[size];
    size++;
+
+   if (full_decl->Range.First > full_decl->Range.Last)
+      return 0;
 
    *dr = tgsi_build_declaration_range(
       full_decl->Range.First,

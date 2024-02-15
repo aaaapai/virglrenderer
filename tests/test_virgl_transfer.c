@@ -25,11 +25,11 @@
 /* transfer and iov related tests */
 #include <check.h>
 #include <stdlib.h>
-#include <sys/uio.h>
 #include <errno.h>
 #include <virglrenderer.h>
 #include "pipe/p_defines.h"
 #include "virgl_hw.h"
+#include "vrend_iov.h"
 #include "virgl_protocol.h"
 #include "testvirgl_encode.h"
 
@@ -618,7 +618,7 @@ static unsigned get_box_size(struct pipe_box *box, int elsize)
 }
 
 static void virgl_test_transfer_res(enum pipe_texture_target target,
-				    bool write, bool invalid)
+                                    bool write, bool invalid)
 {
   struct virgl_renderer_resource_create_args res;
   struct pipe_box box;
@@ -642,10 +642,10 @@ static void virgl_test_transfer_res(enum pipe_texture_target target,
 
   if (write)
     ret = virgl_renderer_transfer_write_iov(res.handle, 1, 0, 0, 0,
-					 (struct virgl_box *)&box, 0, iovs, niovs);
+                                            (struct virgl_box *)&box, 0, iovs, niovs);
   else
     ret = virgl_renderer_transfer_read_iov(res.handle, 1, 0, 0, 0,
-					   (struct virgl_box *)&box, 0, iovs, niovs);
+                                           (struct virgl_box *)&box, 0, iovs, niovs);
   ck_assert_int_eq(ret, invalid ? EINVAL : 0);
   virgl_renderer_ctx_detach_resource(1, res.handle);
 
@@ -678,7 +678,7 @@ START_TEST(virgl_test_transfer_res_write_invalid)
 END_TEST
 
 static void virgl_test_transfer_inline(enum pipe_texture_target target,
-				       bool invalid, int large_flags)
+                                       bool invalid, int large_flags)
 {
   struct virgl_renderer_resource_create_args args;
   struct pipe_box box;
@@ -704,9 +704,13 @@ static void virgl_test_transfer_inline(enum pipe_texture_target target,
 
   virgl_renderer_ctx_attach_resource(ctx.ctx_id, res.handle);
   virgl_encoder_inline_write(&ctx, &res, 0, 0, (struct pipe_box *)&box, data, box.width * elsize, 0);
-  ret = virgl_renderer_submit_cmd(ctx.cbuf->buf, ctx.ctx_id, ctx.cbuf->cdw);
+  ret = testvirgl_ctx_send_cmdbuf(&ctx);
   ck_assert_int_eq(ret, invalid ? EINVAL : 0);
   virgl_renderer_ctx_detach_resource(ctx.ctx_id, res.handle);
+
+  virgl_encoder_inline_write(&ctx, &res, 0, 0, (struct pipe_box *)&box, data, box.width * elsize, 0);
+  ret = testvirgl_ctx_send_cmdbuf(&ctx);
+  ck_assert_int_eq(ret, EINVAL);
 
   virgl_renderer_resource_unref(res.handle);
   testvirgl_fini_ctx_cmdbuf(&ctx);
@@ -749,7 +753,7 @@ START_TEST(virgl_test_transfer_to_staging_without_iov_fails)
   box.width = bufsize;
   virgl_encoder_transfer(&ctx, &res, 0, 0, &box, 0, VIRGL_TRANSFER_TO_HOST);
 
-  ret = virgl_renderer_submit_cmd(ctx.cbuf->buf, ctx.ctx_id, ctx.cbuf->cdw);
+  ret = testvirgl_ctx_send_cmdbuf(&ctx);
   ck_assert_int_eq(ret, EINVAL);
 
   virgl_renderer_ctx_detach_resource(ctx.ctx_id, res.handle);
@@ -776,7 +780,7 @@ START_TEST(virgl_test_transfer_to_staging_with_iov_succeeds)
   box.width = bufsize;
   virgl_encoder_transfer(&ctx, &res, 0, 0, &box, 0, VIRGL_TRANSFER_TO_HOST);
 
-  ret = virgl_renderer_submit_cmd(ctx.cbuf->buf, ctx.ctx_id, ctx.cbuf->cdw);
+  ret = testvirgl_ctx_send_cmdbuf(&ctx);
   ck_assert_int_eq(ret, 0);
 
   virgl_renderer_ctx_detach_resource(ctx.ctx_id, res.handle);
@@ -809,7 +813,7 @@ START_TEST(virgl_test_copy_transfer_from_staging_without_iov_fails)
   box.width = bufsize;
   virgl_encoder_copy_transfer(&ctx, &dst_res, 0, 0, &box, &src_res, 0, synchronized);
 
-  ret = virgl_renderer_submit_cmd(ctx.cbuf->buf, ctx.ctx_id, ctx.cbuf->cdw);
+  ret = testvirgl_ctx_send_cmdbuf(&ctx);
   ck_assert_int_eq(ret, EINVAL);
 
   virgl_renderer_ctx_detach_resource(ctx.ctx_id, src_res.handle);
@@ -844,11 +848,16 @@ START_TEST(virgl_test_copy_transfer_from_staging_with_iov_succeeds)
   box.width = bufsize;
   virgl_encoder_copy_transfer(&ctx, &dst_res, 0, 0, &box, &src_res, 0, synchronized);
 
-  ret = virgl_renderer_submit_cmd(ctx.cbuf->buf, ctx.ctx_id, ctx.cbuf->cdw);
+  ret = testvirgl_ctx_send_cmdbuf(&ctx);
   ck_assert_int_eq(ret, 0);
 
   virgl_renderer_ctx_detach_resource(ctx.ctx_id, src_res.handle);
   virgl_renderer_ctx_detach_resource(ctx.ctx_id, dst_res.handle);
+
+  virgl_encoder_copy_transfer(&ctx, &dst_res, 0, 0, &box, &src_res, 0, synchronized);
+  ret = testvirgl_ctx_send_cmdbuf(&ctx);
+  ck_assert_int_eq(ret, EINVAL);
+
   testvirgl_destroy_backed_res(&src_res);
   testvirgl_destroy_backed_res(&dst_res);
   testvirgl_fini_ctx_cmdbuf(&ctx);
@@ -878,7 +887,7 @@ START_TEST(virgl_test_copy_transfer_to_staging_without_iov_fails)
 
   virgl_encoder_copy_transfer(&ctx, &dst_res, 0, 0, &box, &src_res, 0, synchronized);
 
-  ret = virgl_renderer_submit_cmd(ctx.cbuf->buf, ctx.ctx_id, ctx.cbuf->cdw);
+  ret = testvirgl_ctx_send_cmdbuf(&ctx);
   ck_assert_int_eq(ret, EINVAL);
 
   virgl_renderer_ctx_detach_resource(ctx.ctx_id, src_res.handle);
@@ -912,7 +921,7 @@ START_TEST(virgl_test_copy_transfer_to_staging_with_iov_succeeds)
 
   virgl_encoder_copy_transfer(&ctx, &dst_res, 0, 0, &box, &src_res, 0, synchronized);
 
-  ret = virgl_renderer_submit_cmd(ctx.cbuf->buf, ctx.ctx_id, ctx.cbuf->cdw);
+  ret = testvirgl_ctx_send_cmdbuf(&ctx);
   ck_assert_int_eq(ret, 0);
 
   virgl_renderer_ctx_detach_resource(ctx.ctx_id, src_res.handle);
@@ -943,7 +952,7 @@ START_TEST(virgl_test_transfer_near_res_bounds_with_stride_succeeds)
   virgl_encoder_transfer_with_stride(&ctx, &res, 0, 0, &box, 6 * 4, VIRGL_TRANSFER_TO_HOST,
                                      res_stride, 0);
 
-  ret = virgl_renderer_submit_cmd(ctx.cbuf->buf, ctx.ctx_id, ctx.cbuf->cdw);
+  ret = testvirgl_ctx_send_cmdbuf(&ctx);
   ck_assert_int_eq(ret, 0);
 
   virgl_renderer_ctx_detach_resource(ctx.ctx_id, res.handle);
@@ -997,7 +1006,7 @@ START_TEST(test_vrend_host_backed_memory_no_data_leak)
 
    virgl_renderer_resource_unref(res.handle);
    free(data);
-
+   testvirgl_fini_ctx_cmdbuf(&ctx);
 }
 END_TEST
 
@@ -1037,6 +1046,10 @@ static Suite *virgl_init_suite(void)
   tcase_add_loop_test(tc_core, virgl_test_transfer_res_write_valid, 0, PIPE_MAX_TEXTURE_TYPES);
   tcase_add_loop_test(tc_core, virgl_test_transfer_res_read_invalid, 0, PIPE_MAX_TEXTURE_TYPES);
   tcase_add_loop_test(tc_core, virgl_test_transfer_res_write_invalid, 0, PIPE_MAX_TEXTURE_TYPES);
+  suite_add_tcase(s, tc_core);
+
+  tc_core = tcase_create("leak");
+  tcase_add_test(tc_core, test_vrend_host_backed_memory_no_data_leak);
   suite_add_tcase(s, tc_core);
 
   tc_core = tcase_create("transfer_inline_write");

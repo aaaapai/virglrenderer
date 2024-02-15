@@ -11,6 +11,9 @@
 #include "vn_protocol_renderer_structs.h"
 
 #pragma GCC diagnostic push
+#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ >= 12
+#pragma GCC diagnostic ignored "-Wdangling-pointer"
+#endif
 #pragma GCC diagnostic ignored "-Wpointer-arith"
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
@@ -111,7 +114,7 @@ vn_decode_VkImageDrmFormatModifierListCreateInfoEXT_self_temp(struct vn_cs_decod
     vn_decode_uint32_t(dec, &val->drmFormatModifierCount);
     if (vn_peek_array_size(dec)) {
         const size_t array_size = vn_decode_array_size(dec, val->drmFormatModifierCount);
-        val->pDrmFormatModifiers = vn_cs_decoder_alloc_temp(dec, sizeof(*val->pDrmFormatModifiers) * array_size);
+        val->pDrmFormatModifiers = vn_cs_decoder_alloc_temp_array(dec, sizeof(*val->pDrmFormatModifiers), array_size);
         if (!val->pDrmFormatModifiers) return;
         vn_decode_uint64_t_array(dec, (uint64_t *)val->pDrmFormatModifiers, array_size);
     } else {
@@ -221,7 +224,7 @@ vn_decode_VkImageDrmFormatModifierExplicitCreateInfoEXT_self_temp(struct vn_cs_d
     vn_decode_uint32_t(dec, &val->drmFormatModifierPlaneCount);
     if (vn_peek_array_size(dec)) {
         const uint32_t iter_count = vn_decode_array_size(dec, val->drmFormatModifierPlaneCount);
-        val->pPlaneLayouts = vn_cs_decoder_alloc_temp(dec, sizeof(*val->pPlaneLayouts) * iter_count);
+        val->pPlaneLayouts = vn_cs_decoder_alloc_temp_array(dec, sizeof(*val->pPlaneLayouts), iter_count);
         if (!val->pPlaneLayouts) return;
         for (uint32_t i = 0; i < iter_count; i++)
             vn_decode_VkSubresourceLayout_temp(dec, &((VkSubresourceLayout *)val->pPlaneLayouts)[i]);
@@ -355,7 +358,7 @@ vn_decode_VkImageCreateInfo_self_temp(struct vn_cs_decoder *dec, VkImageCreateIn
     vn_decode_uint32_t(dec, &val->queueFamilyIndexCount);
     if (vn_peek_array_size(dec)) {
         const size_t array_size = vn_decode_array_size(dec, val->queueFamilyIndexCount);
-        val->pQueueFamilyIndices = vn_cs_decoder_alloc_temp(dec, sizeof(*val->pQueueFamilyIndices) * array_size);
+        val->pQueueFamilyIndices = vn_cs_decoder_alloc_temp_array(dec, sizeof(*val->pQueueFamilyIndices), array_size);
         if (!val->pQueueFamilyIndices) return;
         vn_decode_uint32_t_array(dec, (uint32_t *)val->pQueueFamilyIndices, array_size);
     } else {
@@ -449,7 +452,7 @@ vn_decode_VkBindImageMemoryDeviceGroupInfo_self_temp(struct vn_cs_decoder *dec, 
     vn_decode_uint32_t(dec, &val->deviceIndexCount);
     if (vn_peek_array_size(dec)) {
         const size_t array_size = vn_decode_array_size(dec, val->deviceIndexCount);
-        val->pDeviceIndices = vn_cs_decoder_alloc_temp(dec, sizeof(*val->pDeviceIndices) * array_size);
+        val->pDeviceIndices = vn_cs_decoder_alloc_temp_array(dec, sizeof(*val->pDeviceIndices), array_size);
         if (!val->pDeviceIndices) return;
         vn_decode_uint32_t_array(dec, (uint32_t *)val->pDeviceIndices, array_size);
     } else {
@@ -459,7 +462,7 @@ vn_decode_VkBindImageMemoryDeviceGroupInfo_self_temp(struct vn_cs_decoder *dec, 
     vn_decode_uint32_t(dec, &val->splitInstanceBindRegionCount);
     if (vn_peek_array_size(dec)) {
         const uint32_t iter_count = vn_decode_array_size(dec, val->splitInstanceBindRegionCount);
-        val->pSplitInstanceBindRegions = vn_cs_decoder_alloc_temp(dec, sizeof(*val->pSplitInstanceBindRegions) * iter_count);
+        val->pSplitInstanceBindRegions = vn_cs_decoder_alloc_temp_array(dec, sizeof(*val->pSplitInstanceBindRegions), iter_count);
         if (!val->pSplitInstanceBindRegions) return;
         for (uint32_t i = 0; i < iter_count; i++)
             vn_decode_VkRect2D_temp(dec, &((VkRect2D *)val->pSplitInstanceBindRegions)[i]);
@@ -1107,7 +1110,7 @@ static inline void vn_decode_vkGetImageSparseMemoryRequirements_args_temp(struct
     }
     if (vn_peek_array_size(dec)) {
         const uint32_t iter_count = vn_decode_array_size(dec, (args->pSparseMemoryRequirementCount ? *args->pSparseMemoryRequirementCount : 0));
-        args->pSparseMemoryRequirements = vn_cs_decoder_alloc_temp(dec, sizeof(*args->pSparseMemoryRequirements) * iter_count);
+        args->pSparseMemoryRequirements = vn_cs_decoder_alloc_temp_array(dec, sizeof(*args->pSparseMemoryRequirements), iter_count);
         if (!args->pSparseMemoryRequirements) return;
         for (uint32_t i = 0; i < iter_count; i++)
             vn_decode_VkSparseImageMemoryRequirements_partial_temp(dec, &args->pSparseMemoryRequirements[i]);
@@ -1264,7 +1267,7 @@ static inline void vn_decode_vkBindImageMemory2_args_temp(struct vn_cs_decoder *
     vn_decode_uint32_t(dec, &args->bindInfoCount);
     if (vn_peek_array_size(dec)) {
         const uint32_t iter_count = vn_decode_array_size(dec, args->bindInfoCount);
-        args->pBindInfos = vn_cs_decoder_alloc_temp(dec, sizeof(*args->pBindInfos) * iter_count);
+        args->pBindInfos = vn_cs_decoder_alloc_temp_array(dec, sizeof(*args->pBindInfos), iter_count);
         if (!args->pBindInfos) return;
         for (uint32_t i = 0; i < iter_count; i++)
             vn_decode_VkBindImageMemoryInfo_temp(dec, &((VkBindImageMemoryInfo *)args->pBindInfos)[i]);
@@ -1354,7 +1357,7 @@ static inline void vn_decode_vkGetImageSparseMemoryRequirements2_args_temp(struc
     }
     if (vn_peek_array_size(dec)) {
         const uint32_t iter_count = vn_decode_array_size(dec, (args->pSparseMemoryRequirementCount ? *args->pSparseMemoryRequirementCount : 0));
-        args->pSparseMemoryRequirements = vn_cs_decoder_alloc_temp(dec, sizeof(*args->pSparseMemoryRequirements) * iter_count);
+        args->pSparseMemoryRequirements = vn_cs_decoder_alloc_temp_array(dec, sizeof(*args->pSparseMemoryRequirements), iter_count);
         if (!args->pSparseMemoryRequirements) return;
         for (uint32_t i = 0; i < iter_count; i++)
             vn_decode_VkSparseImageMemoryRequirements2_partial_temp(dec, &args->pSparseMemoryRequirements[i]);
@@ -1450,7 +1453,7 @@ static inline void vn_decode_vkGetDeviceImageSparseMemoryRequirements_args_temp(
     }
     if (vn_peek_array_size(dec)) {
         const uint32_t iter_count = vn_decode_array_size(dec, (args->pSparseMemoryRequirementCount ? *args->pSparseMemoryRequirementCount : 0));
-        args->pSparseMemoryRequirements = vn_cs_decoder_alloc_temp(dec, sizeof(*args->pSparseMemoryRequirements) * iter_count);
+        args->pSparseMemoryRequirements = vn_cs_decoder_alloc_temp_array(dec, sizeof(*args->pSparseMemoryRequirements), iter_count);
         if (!args->pSparseMemoryRequirements) return;
         for (uint32_t i = 0; i < iter_count; i++)
             vn_decode_VkSparseImageMemoryRequirements2_partial_temp(dec, &args->pSparseMemoryRequirements[i]);
@@ -1536,9 +1539,8 @@ static inline void vn_dispatch_vkGetImageMemoryRequirements(struct vn_dispatch_c
     if (!vn_cs_decoder_get_fatal(ctx->decoder))
         ctx->dispatch_vkGetImageMemoryRequirements(ctx, &args);
 
-
-    if (!vn_cs_decoder_get_fatal(ctx->decoder) && (flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT))
-       vn_encode_vkGetImageMemoryRequirements_reply(ctx->encoder, &args);
+    if ((flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT) && !vn_cs_decoder_get_fatal(ctx->decoder))
+        vn_encode_vkGetImageMemoryRequirements_reply(ctx->encoder, &args);
 
     vn_cs_decoder_reset_temp_pool(ctx->decoder);
 }
@@ -1566,8 +1568,8 @@ static inline void vn_dispatch_vkBindImageMemory(struct vn_dispatch_context *ctx
         vn_dispatch_debug_log(ctx, "vkBindImageMemory returned %d", args.ret);
 #endif
 
-    if (!vn_cs_decoder_get_fatal(ctx->decoder) && (flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT))
-       vn_encode_vkBindImageMemory_reply(ctx->encoder, &args);
+    if ((flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT) && !vn_cs_decoder_get_fatal(ctx->decoder))
+        vn_encode_vkBindImageMemory_reply(ctx->encoder, &args);
 
     vn_cs_decoder_reset_temp_pool(ctx->decoder);
 }
@@ -1590,9 +1592,8 @@ static inline void vn_dispatch_vkGetImageSparseMemoryRequirements(struct vn_disp
     if (!vn_cs_decoder_get_fatal(ctx->decoder))
         ctx->dispatch_vkGetImageSparseMemoryRequirements(ctx, &args);
 
-
-    if (!vn_cs_decoder_get_fatal(ctx->decoder) && (flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT))
-       vn_encode_vkGetImageSparseMemoryRequirements_reply(ctx->encoder, &args);
+    if ((flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT) && !vn_cs_decoder_get_fatal(ctx->decoder))
+        vn_encode_vkGetImageSparseMemoryRequirements_reply(ctx->encoder, &args);
 
     vn_cs_decoder_reset_temp_pool(ctx->decoder);
 }
@@ -1620,8 +1621,8 @@ static inline void vn_dispatch_vkCreateImage(struct vn_dispatch_context *ctx, Vk
         vn_dispatch_debug_log(ctx, "vkCreateImage returned %d", args.ret);
 #endif
 
-    if (!vn_cs_decoder_get_fatal(ctx->decoder) && (flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT))
-       vn_encode_vkCreateImage_reply(ctx->encoder, &args);
+    if ((flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT) && !vn_cs_decoder_get_fatal(ctx->decoder))
+        vn_encode_vkCreateImage_reply(ctx->encoder, &args);
 
     vn_cs_decoder_reset_temp_pool(ctx->decoder);
 }
@@ -1644,9 +1645,8 @@ static inline void vn_dispatch_vkDestroyImage(struct vn_dispatch_context *ctx, V
     if (!vn_cs_decoder_get_fatal(ctx->decoder))
         ctx->dispatch_vkDestroyImage(ctx, &args);
 
-
-    if (!vn_cs_decoder_get_fatal(ctx->decoder) && (flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT))
-       vn_encode_vkDestroyImage_reply(ctx->encoder, &args);
+    if ((flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT) && !vn_cs_decoder_get_fatal(ctx->decoder))
+        vn_encode_vkDestroyImage_reply(ctx->encoder, &args);
 
     vn_cs_decoder_reset_temp_pool(ctx->decoder);
 }
@@ -1669,9 +1669,8 @@ static inline void vn_dispatch_vkGetImageSubresourceLayout(struct vn_dispatch_co
     if (!vn_cs_decoder_get_fatal(ctx->decoder))
         ctx->dispatch_vkGetImageSubresourceLayout(ctx, &args);
 
-
-    if (!vn_cs_decoder_get_fatal(ctx->decoder) && (flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT))
-       vn_encode_vkGetImageSubresourceLayout_reply(ctx->encoder, &args);
+    if ((flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT) && !vn_cs_decoder_get_fatal(ctx->decoder))
+        vn_encode_vkGetImageSubresourceLayout_reply(ctx->encoder, &args);
 
     vn_cs_decoder_reset_temp_pool(ctx->decoder);
 }
@@ -1699,8 +1698,8 @@ static inline void vn_dispatch_vkBindImageMemory2(struct vn_dispatch_context *ct
         vn_dispatch_debug_log(ctx, "vkBindImageMemory2 returned %d", args.ret);
 #endif
 
-    if (!vn_cs_decoder_get_fatal(ctx->decoder) && (flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT))
-       vn_encode_vkBindImageMemory2_reply(ctx->encoder, &args);
+    if ((flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT) && !vn_cs_decoder_get_fatal(ctx->decoder))
+        vn_encode_vkBindImageMemory2_reply(ctx->encoder, &args);
 
     vn_cs_decoder_reset_temp_pool(ctx->decoder);
 }
@@ -1723,9 +1722,8 @@ static inline void vn_dispatch_vkGetImageMemoryRequirements2(struct vn_dispatch_
     if (!vn_cs_decoder_get_fatal(ctx->decoder))
         ctx->dispatch_vkGetImageMemoryRequirements2(ctx, &args);
 
-
-    if (!vn_cs_decoder_get_fatal(ctx->decoder) && (flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT))
-       vn_encode_vkGetImageMemoryRequirements2_reply(ctx->encoder, &args);
+    if ((flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT) && !vn_cs_decoder_get_fatal(ctx->decoder))
+        vn_encode_vkGetImageMemoryRequirements2_reply(ctx->encoder, &args);
 
     vn_cs_decoder_reset_temp_pool(ctx->decoder);
 }
@@ -1748,9 +1746,56 @@ static inline void vn_dispatch_vkGetImageSparseMemoryRequirements2(struct vn_dis
     if (!vn_cs_decoder_get_fatal(ctx->decoder))
         ctx->dispatch_vkGetImageSparseMemoryRequirements2(ctx, &args);
 
+    if ((flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT) && !vn_cs_decoder_get_fatal(ctx->decoder))
+        vn_encode_vkGetImageSparseMemoryRequirements2_reply(ctx->encoder, &args);
 
-    if (!vn_cs_decoder_get_fatal(ctx->decoder) && (flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT))
-       vn_encode_vkGetImageSparseMemoryRequirements2_reply(ctx->encoder, &args);
+    vn_cs_decoder_reset_temp_pool(ctx->decoder);
+}
+
+static inline void vn_dispatch_vkGetDeviceImageMemoryRequirements(struct vn_dispatch_context *ctx, VkCommandFlagsEXT flags)
+{
+    struct vn_command_vkGetDeviceImageMemoryRequirements args;
+
+    if (!ctx->dispatch_vkGetDeviceImageMemoryRequirements) {
+        vn_cs_decoder_set_fatal(ctx->decoder);
+        return;
+    }
+
+    vn_decode_vkGetDeviceImageMemoryRequirements_args_temp(ctx->decoder, &args);
+    if (!args.device) {
+        vn_cs_decoder_set_fatal(ctx->decoder);
+        return;
+    }
+
+    if (!vn_cs_decoder_get_fatal(ctx->decoder))
+        ctx->dispatch_vkGetDeviceImageMemoryRequirements(ctx, &args);
+
+    if ((flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT) && !vn_cs_decoder_get_fatal(ctx->decoder))
+        vn_encode_vkGetDeviceImageMemoryRequirements_reply(ctx->encoder, &args);
+
+    vn_cs_decoder_reset_temp_pool(ctx->decoder);
+}
+
+static inline void vn_dispatch_vkGetDeviceImageSparseMemoryRequirements(struct vn_dispatch_context *ctx, VkCommandFlagsEXT flags)
+{
+    struct vn_command_vkGetDeviceImageSparseMemoryRequirements args;
+
+    if (!ctx->dispatch_vkGetDeviceImageSparseMemoryRequirements) {
+        vn_cs_decoder_set_fatal(ctx->decoder);
+        return;
+    }
+
+    vn_decode_vkGetDeviceImageSparseMemoryRequirements_args_temp(ctx->decoder, &args);
+    if (!args.device) {
+        vn_cs_decoder_set_fatal(ctx->decoder);
+        return;
+    }
+
+    if (!vn_cs_decoder_get_fatal(ctx->decoder))
+        ctx->dispatch_vkGetDeviceImageSparseMemoryRequirements(ctx, &args);
+
+    if ((flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT) && !vn_cs_decoder_get_fatal(ctx->decoder))
+        vn_encode_vkGetDeviceImageSparseMemoryRequirements_reply(ctx->encoder, &args);
 
     vn_cs_decoder_reset_temp_pool(ctx->decoder);
 }
@@ -1828,8 +1873,8 @@ static inline void vn_dispatch_vkGetImageDrmFormatModifierPropertiesEXT(struct v
         vn_dispatch_debug_log(ctx, "vkGetImageDrmFormatModifierPropertiesEXT returned %d", args.ret);
 #endif
 
-    if (!vn_cs_decoder_get_fatal(ctx->decoder) && (flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT))
-       vn_encode_vkGetImageDrmFormatModifierPropertiesEXT_reply(ctx->encoder, &args);
+    if ((flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT) && !vn_cs_decoder_get_fatal(ctx->decoder))
+        vn_encode_vkGetImageDrmFormatModifierPropertiesEXT_reply(ctx->encoder, &args);
 
     vn_cs_decoder_reset_temp_pool(ctx->decoder);
 }

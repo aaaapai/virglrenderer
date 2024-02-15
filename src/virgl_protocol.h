@@ -129,6 +129,8 @@ enum virgl_context_cmd {
    VIRGL_CCMD_ENCODE_BITSTREAM,
    VIRGL_CCMD_END_FRAME,
 
+   VIRGL_CCMD_CLEAR_SURFACE,
+
    VIRGL_MAX_COMMANDS
 };
 
@@ -377,13 +379,13 @@ enum virgl_context_cmd {
 #define VIRGL_OBJ_SAMPLE_STATE_S0_WRAP_S(x) (((x) & 0x7) << 0)
 #define VIRGL_OBJ_SAMPLE_STATE_S0_WRAP_T(x) (((x) & 0x7) << 3)
 #define VIRGL_OBJ_SAMPLE_STATE_S0_WRAP_R(x) (((x) & 0x7) << 6)
-#define VIRGL_OBJ_SAMPLE_STATE_S0_MIN_IMG_FILTER(x) (((x) & 0x3) << 9)
+#define VIRGL_OBJ_SAMPLE_STATE_S0_MIN_IMG_FILTER(x) (((x) & 0x1) << 9) /* Used to be 2 bits wide */
 #define VIRGL_OBJ_SAMPLE_STATE_S0_MIN_MIP_FILTER(x) (((x) & 0x3) << 11)
-#define VIRGL_OBJ_SAMPLE_STATE_S0_MAG_IMG_FILTER(x) (((x) & 0x3) << 13)
+#define VIRGL_OBJ_SAMPLE_STATE_S0_MAG_IMG_FILTER(x) (((x) & 0x1) << 13) /* Used to be 2 bits wide */
 #define VIRGL_OBJ_SAMPLE_STATE_S0_COMPARE_MODE(x) (((x) & 0x1) << 15)
 #define VIRGL_OBJ_SAMPLE_STATE_S0_COMPARE_FUNC(x) (((x) & 0x7) << 16)
 #define VIRGL_OBJ_SAMPLE_STATE_S0_SEAMLESS_CUBE_MAP(x) (((x) & 0x1) << 19)
-#define VIRGL_OBJ_SAMPLE_STATE_S0_MAX_ANISOTROPY(x) (((x & 0x3f)) << 20)
+#define VIRGL_OBJ_SAMPLE_STATE_S0_MAX_ANISOTROPY(x) (((x & 0x1f)) << 20) /* Used to be 6 bits wide */
 
 #define VIRGL_OBJ_SAMPLER_STATE_LOD_BIAS 3
 #define VIRGL_OBJ_SAMPLER_STATE_MIN_LOD 4
@@ -700,7 +702,7 @@ enum vrend_tweak_type {
 #define VIRGL_LINK_SHADER_COMPUTE_HANDLE 6
 
 /* VIRGL_CCMD_CREATE_VIDEO_CODEC */
-#define VIRGL_CREATE_VIDEO_CODEC_SIZE       7
+#define VIRGL_CREATE_VIDEO_CODEC_MIN_SIZE   7
 #define VIRGL_CREATE_VIDEO_CODEC_HANDLE     1
 #define VIRGL_CREATE_VIDEO_CODEC_PROFILE    2
 #define VIRGL_CREATE_VIDEO_CODEC_ENTRYPOINT 3
@@ -708,9 +710,10 @@ enum vrend_tweak_type {
 #define VIRGL_CREATE_VIDEO_CODEC_LEVEL      5
 #define VIRGL_CREATE_VIDEO_CODEC_WIDTH      6
 #define VIRGL_CREATE_VIDEO_CODEC_HEIGHT     7
+#define VIRGL_CREATE_VIDEO_CODEC_MAX_REF    8
 
 /* VIRGL_CCMD_DESTROY_VIDEO_CODEC */
-#define VIRGL_DESTROY_VIDEO_CODEC_SIZE      1
+#define VIRGL_DESTROY_VIDEO_CODEC_MIN_SIZE  1
 #define VIRGL_DESTROY_VIDEO_CODEC_HANDLE    1
 
 /* VIRGL_CCMD_CREATE_VIDEO_BUFFER */
@@ -722,18 +725,18 @@ enum vrend_tweak_type {
 #define VIRGL_CREATE_VIDEO_BUFFER_RES_BASE  5
 
 /* VIRGL_CCMD_DESTROY_VIDEO_BUFFER */
-#define VIRGL_DESTROY_VIDEO_BUFFER_SIZE     1
+#define VIRGL_DESTROY_VIDEO_BUFFER_MIN_SIZE 1
 #define VIRGL_DESTROY_VIDEO_BUFFER_HANDLE   1
 
 /* VIRGL_CCMD_BEGIN_FRAME */
-#define VIRGL_BEGIN_FRAME_SIZE              2
+#define VIRGL_BEGIN_FRAME_MIN_SIZE          2
 #define VIRGL_BEGIN_FRAME_CDC_HANDLE        1
 #define VIRGL_BEGIN_FRAME_TGT_HANDLE        2
 
 /* VIRGL_CCMD_DECODE_MACROBLOCK */
 
 /* VIRGL_CCMD_DECODE_BITSTREAM */
-#define VIRGL_DECODE_BS_SIZE                5
+#define VIRGL_DECODE_BS_MIN_SIZE            5
 #define VIRGL_DECODE_BS_CDC_HANDLE          1
 #define VIRGL_DECODE_BS_TGT_HANDLE          2
 #define VIRGL_DECODE_BS_DSC_HANDLE          3
@@ -741,10 +744,31 @@ enum vrend_tweak_type {
 #define VIRGL_DECODE_BS_BUF_SIZE            5
 
 /* VIRGL_CCMD_ENCODE_BITSTREAM */
+#define VIRGL_ENCODE_BS_MIN_SIZE            5
+#define VIRGL_ENCODE_BS_CDC_HANDLE          1
+#define VIRGL_ENCODE_BS_SRC_HANDLE          2
+#define VIRGL_ENCODE_BS_DEST_HANDLE         3
+#define VIRGL_ENCODE_BS_DESC_HANDLE         4
+#define VIRGL_ENCODE_BS_FEED_HANDLE         5
 
 /* VIRGL_CCMD_END_FRAME */
-#define VIRGL_END_FRAME_SIZE                2
+#define VIRGL_END_FRAME_MIN_SIZE            2
 #define VIRGL_END_FRAME_CDC_HANDLE          1
 #define VIRGL_END_FRAME_TGT_HANDLE          2
+
+/* VIRGL_CCMD_CLEAR_SURFACE */
+#define VIRGL_CLEAR_SURFACE_SIZE                   10
+#define VIRGL_CLEAR_SURFACE_S0                     1
+#define VIRGL_CLEAR_SURFACE_S0_RENDER_CONDITION(x) (((x)&0x1) << 0)
+#define VIRGL_CLEAR_SURFACE_S0_BUFFERS(x)          (((x)&0x7) << 1)
+#define VIRGL_CLEAR_SURFACE_HANDLE                 2
+#define VIRGL_CLEAR_SURFACE_COLOR_0                3 /* color is 4 * u32/f32/i32 or (depth/f64+stencil/u32) */
+#define VIRGL_CLEAR_SURFACE_COLOR_1                4
+#define VIRGL_CLEAR_SURFACE_COLOR_2                5
+#define VIRGL_CLEAR_SURFACE_COLOR_3                6
+#define VIRGL_CLEAR_SURFACE_DST_X                  7
+#define VIRGL_CLEAR_SURFACE_DST_Y                  8
+#define VIRGL_CLEAR_SURFACE_WIDTH                  9
+#define VIRGL_CLEAR_SURFACE_HEIGHT                 10
 
 #endif

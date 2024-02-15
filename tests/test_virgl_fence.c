@@ -29,7 +29,9 @@
 
 #include <check.h>
 #include <errno.h>
+#ifndef _WIN32
 #include <poll.h>
+#endif
 #include <stdlib.h>
 #include <unistd.h>
 #include <virglrenderer.h>
@@ -39,6 +41,10 @@
 START_TEST(virgl_fence_create)
 {
    int ret;
+
+   ret = virgl_renderer_create_fence(1, 0);
+   ck_assert_int_eq(ret, EINVAL);
+
    ret = testvirgl_init_single_ctx();
    ck_assert_int_eq(ret, 0);
 
@@ -118,6 +124,7 @@ START_TEST(virgl_fence_poll_many)
 }
 END_TEST
 
+#ifndef _WIN32
 static int
 wait_sync_fd(int fd, int timeout)
 {
@@ -237,6 +244,7 @@ START_TEST(virgl_fence_export_invalid)
    testvirgl_fini_single_ctx();
 }
 END_TEST
+#endif
 
 static Suite *virgl_init_suite(bool include_fence_export)
 {
@@ -251,9 +259,11 @@ static Suite *virgl_init_suite(bool include_fence_export)
    tcase_add_test(tc_core, virgl_fence_poll_many);
 
    if (include_fence_export) {
+#ifndef _WIN32
       tcase_add_test(tc_core, virgl_fence_export);
       tcase_add_test(tc_core, virgl_fence_export_signaled);
       tcase_add_test(tc_core, virgl_fence_export_invalid);
+#endif
    }
 
    suite_add_tcase(s, tc_core);

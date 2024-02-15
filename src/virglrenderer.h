@@ -31,6 +31,8 @@
 #include <stdbool.h>
 #include <stdarg.h>
 
+#include "virgl-version.h"
+
 struct virgl_box;
 struct iovec;
 
@@ -43,13 +45,10 @@ struct virgl_renderer_gl_ctx_param {
    bool shared;
    int major_ver;
    int minor_ver;
+   int compat_ctx;
 };
 
-#ifdef VIRGL_RENDERER_UNSTABLE_APIS
 #define VIRGL_RENDERER_CALLBACKS_VERSION 4
-#else
-#define VIRGL_RENDERER_CALLBACKS_VERSION 2
-#endif
 
 struct virgl_renderer_callbacks {
    int version;
@@ -65,7 +64,7 @@ struct virgl_renderer_callbacks {
    virgl_renderer_gl_context (*create_gl_context)(void *cookie, int scanout_idx, struct virgl_renderer_gl_ctx_param *param);
    /* destroy a GL/GLES context */
    void (*destroy_gl_context)(void *cookie, virgl_renderer_gl_context ctx);
-   /* make a context current */
+   /* make a context current, returns 0 on success and negative errno on failure */
    int (*make_current)(void *cookie, int scanout_idx, virgl_renderer_gl_context ctx);
 
    /*
@@ -77,18 +76,34 @@ struct virgl_renderer_callbacks {
     */
    int (*get_drm_fd)(void *cookie);
 
-#ifdef VIRGL_RENDERER_UNSTABLE_APIS
-   void (*write_context_fence)(void *cookie, uint32_t ctx_id, uint64_t queue_id, uint64_t fence_id);
+   /*
+    * v3: Per-context fences signal in creation order only within a context.
+    * Two per-context fences in two contexts might signal in any order.
+    *
+    * When a per-context fence is created, a fence cookie can be specified. The
+    * cookie will be passed to write_context_fence callback. This replaces
+    * fence_id that is used in ctx0 fencing.
+    *
+    * write_context_fence is called on each fence unless the fence has
+    * VIRGL_RENDERER_FENCE_FLAG_MERGEABLE set. When the bit is set,
+    * write_context_fence might be skipped.
+    */
+   void (*write_context_fence)(void *cookie, uint32_t ctx_id, uint32_t ring_idx, uint64_t fence_id);
 
-   /* version 0: a connected socket of type SOCK_SEQPACKET */
+   /*
+    * v3: It allows the client to start the render server externally. It can be
+    * used to sandbox the render server, or is required when the client process
+    * is sandboxed and cannot fork/exec/socketpair.
+    *
+    * version 0: a connected socket of type SOCK_SEQPACKET
+    */
    int (*get_server_fd)(void *cookie, uint32_t version);
 
    /*
-    * Get the EGLDisplay from caller. It requires create_gl_context,
+    * v4: Get the EGLDisplay from caller. It requires create_gl_context,
     * destroy_gl_context, make_current to be implemented by caller.
     */
    void *(*get_egl_display)(void *cookie);
-#endif
 };
 
 /* virtio-gpu compatible interface */
@@ -102,7 +117,6 @@ struct virgl_renderer_callbacks {
 #define VIRGL_RENDERER_USE_SURFACELESS (1 << 3)
 #define VIRGL_RENDERER_USE_GLES (1 << 4)
 
-#ifdef VIRGL_RENDERER_UNSTABLE_APIS
 /*
  * Blob resources used with the 3D driver must be able to be represented as file descriptors.
  * The typical use case is the virtual machine manager (or vtest) is running in a multiprocess
@@ -140,11 +154,20 @@ struct virgl_renderer_callbacks {
  */
 #define VIRGL_RENDERER_DRM           (1 << 10)
 
+#ifdef VIRGL_RENDERER_UNSTABLE_APIS
+
 /* Video encode/decode */
 #define VIRGL_RENDERER_USE_VIDEO     (1 << 11)
 
 
 #endif /* VIRGL_RENDERER_UNSTABLE_APIS */
+
+
+#define VIRGL_RENDERER_D3D11_SHARE_TEXTURE (1 << 12)
+#define VIRGL_RENDERER_COMPAT_PROFILE (1 << 13)
+
+/* Blob allocations must be done by guest from dedicated heap (Host visible memory). */
+#define VIRGL_RENDERER_USE_GUEST_VRAM (1 << 14)
 
 VIRGL_EXPORT int virgl_renderer_init(void *cookie, int flags, struct virgl_renderer_callbacks *cb);
 VIRGL_EXPORT void virgl_renderer_poll(void); /* force fences */
@@ -236,6 +259,22 @@ struct virgl_renderer_supported_structures {
 /* This typedef must be kept in sync with vrend_debug.h */
 typedef void (*virgl_debug_callback_type)(const char *fmt, va_list ap);
 
+enum virgl_log_level_flags {
+   VIRGL_LOG_LEVEL_DEBUG,
+   VIRGL_LOG_LEVEL_INFO,
+   VIRGL_LOG_LEVEL_WARNING,
+   VIRGL_LOG_LEVEL_ERROR,
+
+   /* "SILENT" must be enum with the highest absolute value and it should not
+    * be used as actual log level in calls to virgl_logv and siblings .*/
+   VIRGL_LOG_LEVEL_SILENT,
+};
+
+typedef void (*virgl_free_data_callback_type)(void* user_data);
+typedef void (*virgl_log_callback_type) (enum virgl_log_level_flags log_level,
+                                         const char *message,
+                                         void* user_data);
+
 VIRGL_EXPORT int virgl_renderer_resource_create(struct virgl_renderer_resource_create_args *args, struct iovec *iov, uint32_t num_iovs);
 VIRGL_EXPORT int virgl_renderer_resource_import_eglimage(struct virgl_renderer_resource_create_args *args, void *image);
 VIRGL_EXPORT void virgl_renderer_resource_unref(uint32_t res_handle);
@@ -284,7 +323,14 @@ VIRGL_EXPORT void virgl_renderer_force_ctx_0(void);
 VIRGL_EXPORT void virgl_renderer_ctx_attach_resource(int ctx_id, int res_handle);
 VIRGL_EXPORT void virgl_renderer_ctx_detach_resource(int ctx_id, int res_handle);
 
+/* This API is deprecated, use virgl_set_log_callback instead */
 VIRGL_EXPORT virgl_debug_callback_type virgl_set_debug_callback(virgl_debug_callback_type cb);
+/* Redirects all the logs to the callback, the callback will be called with the given
+ * user_data, free_user_data_cb will be called if the callback is replaced or if
+ * the program ends to free user_data */
+VIRGL_EXPORT void virgl_set_log_callback(virgl_log_callback_type cb,
+                                         void* user_data,
+                                         virgl_free_data_callback_type free_user_data_cb);
 
 /* return information about a resource */
 
@@ -298,10 +344,25 @@ struct virgl_renderer_resource_info {
    uint32_t tex_id;
    uint32_t stride;
    int drm_fourcc;
+   int fd;
+};
+
+#define VIRGL_RENDERER_RESOURCE_INFO_EXT_VERSION 0
+
+struct virgl_renderer_resource_info_ext {
+   int version;
+   struct virgl_renderer_resource_info base;
+   bool has_dmabuf_export;
+   int planes;
+   uint64_t modifiers;
+   void *d3d_tex2d;
 };
 
 VIRGL_EXPORT int virgl_renderer_resource_get_info(int res_handle,
                                                   struct virgl_renderer_resource_info *info);
+
+VIRGL_EXPORT int virgl_renderer_resource_get_info_ext(int res_handle,
+                                                      struct virgl_renderer_resource_info_ext *info);
 
 VIRGL_EXPORT void virgl_renderer_cleanup(void *cookie);
 
@@ -362,12 +423,6 @@ VIRGL_EXPORT int virgl_renderer_resource_get_map_info(uint32_t res_handle, uint3
 VIRGL_EXPORT int
 virgl_renderer_resource_export_blob(uint32_t res_id, uint32_t *fd_type, int *fd);
 
-/*
- * These are unstable APIs for development only. Use these for development/testing purposes
- * only, not in production
- */
-#ifdef VIRGL_RENDERER_UNSTABLE_APIS
-
 struct virgl_renderer_resource_import_blob_args
 {
    uint32_t res_handle;
@@ -380,16 +435,33 @@ struct virgl_renderer_resource_import_blob_args
 VIRGL_EXPORT int
 virgl_renderer_resource_import_blob(const struct virgl_renderer_resource_import_blob_args *args);
 
-VIRGL_EXPORT int
-virgl_renderer_export_fence(uint32_t client_fence_id, int *fd);
-
 #define VIRGL_RENDERER_FENCE_FLAG_MERGEABLE      (1 << 0)
 VIRGL_EXPORT int virgl_renderer_context_create_fence(uint32_t ctx_id,
                                                      uint32_t flags,
-                                                     uint64_t queue_id,
+                                                     uint32_t ring_idx,
                                                      uint64_t fence_id);
+
 VIRGL_EXPORT void virgl_renderer_context_poll(uint32_t ctx_id); /* force fences */
 VIRGL_EXPORT int virgl_renderer_context_get_poll_fd(uint32_t ctx_id);
+
+/*
+ * These are unstable APIs for development only. Use these for development/testing purposes
+ * only, not in production
+ */
+#ifdef VIRGL_RENDERER_UNSTABLE_APIS
+
+VIRGL_EXPORT int
+virgl_renderer_export_fence(uint64_t client_fence_id, int *fd);
+
+VIRGL_EXPORT int
+virgl_renderer_export_signalled_fence(void);
+
+VIRGL_EXPORT int
+virgl_renderer_submit_cmd2(void *buffer,
+                           int ctx_id,
+                           int ndw,
+                           uint64_t *in_fence_ids,
+                           uint32_t num_in_fences);
 
 #endif /* VIRGL_RENDERER_UNSTABLE_APIS */
 

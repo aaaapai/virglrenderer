@@ -57,7 +57,7 @@ int
 virgl_resource_table_init(const struct virgl_resource_pipe_callbacks *callbacks)
 {
    virgl_resource_table = util_hash_table_create(hash_func_u32,
-                                                 compare_func,
+                                                 equal_func,
                                                  virgl_resource_destroy_func);
    if (!virgl_resource_table)
       return ENOMEM;
@@ -116,8 +116,10 @@ virgl_resource_create_from_pipe(uint32_t res_id,
    struct virgl_resource *res;
 
    res = virgl_resource_create(res_id);
-   if (!res)
+   if (!res) {
+      pipe_callbacks.unref(pres, pipe_callbacks.data);
       return NULL;
+   }
 
    /* take ownership */
    res->pipe_resource = pres;
@@ -134,15 +136,17 @@ virgl_resource_create_from_fd(uint32_t res_id,
                               int fd,
                               const struct iovec *iov,
                               int iov_count,
-                              const struct virgl_resource_opaque_fd_metadata *opaque_fd_metadata)
+                              const struct virgl_resource_vulkan_info *vulkan_info)
 {
    struct virgl_resource *res;
 
    assert(fd_type != VIRGL_RESOURCE_FD_INVALID  && fd >= 0);
 
    res = virgl_resource_create(res_id);
-   if (!res)
+   if (!res) {
+      close(fd);
       return NULL;
+   }
 
    res->fd_type = fd_type;
    /* take ownership */
@@ -151,8 +155,8 @@ virgl_resource_create_from_fd(uint32_t res_id,
    res->iov = iov;
    res->iov_count = iov_count;
 
-   if (opaque_fd_metadata && fd_type == VIRGL_RESOURCE_FD_OPAQUE)
-      res->opaque_fd_metadata = *opaque_fd_metadata;
+   if (vulkan_info && fd_type == VIRGL_RESOURCE_FD_OPAQUE)
+      res->vulkan_info = *vulkan_info;
 
    return res;
 }

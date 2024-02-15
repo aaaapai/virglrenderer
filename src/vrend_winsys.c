@@ -23,6 +23,7 @@
  **************************************************************************/
 
 #include "vrend_winsys.h"
+#include "vrend_debug.h"
 
 #ifdef HAVE_EPOXY_GLX_H
 #include "vrend_winsys_glx.h"
@@ -41,6 +42,9 @@ static int use_context = CONTEXT_NONE;
 
 #ifdef HAVE_EPOXY_EGL_H
 struct virgl_egl *egl = NULL;
+#endif
+
+#ifdef ENABLE_GBM
 struct virgl_gbm *gbm = NULL;
 #endif
 
@@ -51,7 +55,7 @@ static struct virgl_glx *glx_info = NULL;
 int vrend_winsys_init(uint32_t flags, int preferred_fd)
 {
    if (flags & VIRGL_RENDERER_USE_EGL) {
-#ifdef HAVE_EPOXY_EGL_H
+#ifdef ENABLE_GBM
       /*
        * If the user specifies a preferred DRM fd and we can't use it, fail. If the user doesn't
        * specify an fd, it's possible to initialize EGL without one.
@@ -78,7 +82,7 @@ int vrend_winsys_init(uint32_t flags, int preferred_fd)
       use_context = CONTEXT_EGL;
 #else
       (void)preferred_fd;
-      vrend_printf( "EGL is not supported on this platform\n");
+      virgl_error("EGL is not supported on this platform\n");
       return -1;
 #endif
    } else if (flags & VIRGL_RENDERER_USE_GLX) {
@@ -88,7 +92,7 @@ int vrend_winsys_init(uint32_t flags, int preferred_fd)
          return -1;
       use_context = CONTEXT_GLX;
 #else
-      vrend_printf( "GLX is not supported on this platform\n");
+      virgl_error("GLX is not supported on this platform\n");
       return -1;
 #endif
    }
@@ -98,7 +102,7 @@ int vrend_winsys_init(uint32_t flags, int preferred_fd)
 
 void vrend_winsys_cleanup(void)
 {
-#ifdef HAVE_EPOXY_EGL_H
+#ifdef ENABLE_GBM
    if (use_context == CONTEXT_EGL) {
       virgl_egl_destroy(egl);
       egl = NULL;
@@ -112,7 +116,10 @@ void vrend_winsys_cleanup(void)
          egl = NULL;
          use_context = CONTEXT_NONE;
       }
-#endif
+   } else if (use_context == CONTEXT_EGL_EXTERNAL) {
+      free(egl);
+      egl = NULL;
+      use_context = CONTEXT_NONE;
    }
 #endif
 #ifdef HAVE_EPOXY_GLX_H
@@ -134,17 +141,18 @@ int vrend_winsys_init_external(void *egl_display)
       use_context = CONTEXT_EGL_EXTERNAL;
 #else
    (void)egl_display;
-   vrend_printf( "EGL is not supported on this platform\n");
+   virgl_error("EGL is not supported on this platform\n");
    return -1;
 #endif
 
    return 0;
 }
 
-virgl_renderer_gl_context vrend_winsys_create_context(struct virgl_gl_ctx_param *param)
+virgl_renderer_gl_context vrend_winsys_create_context(UNUSED struct virgl_gl_ctx_param *param)
 {
 #ifdef HAVE_EPOXY_EGL_H
-   if (use_context == CONTEXT_EGL)
+   if (use_context == CONTEXT_EGL ||
+       use_context == CONTEXT_EGL_EXTERNAL)
       return virgl_egl_create_context(egl, param);
 #endif
 #ifdef HAVE_EPOXY_GLX_H
@@ -154,10 +162,11 @@ virgl_renderer_gl_context vrend_winsys_create_context(struct virgl_gl_ctx_param 
    return NULL;
 }
 
-void vrend_winsys_destroy_context(virgl_renderer_gl_context ctx)
+void vrend_winsys_destroy_context(UNUSED virgl_renderer_gl_context ctx)
 {
 #ifdef HAVE_EPOXY_EGL_H
-   if (use_context == CONTEXT_EGL) {
+   if (use_context == CONTEXT_EGL ||
+       use_context == CONTEXT_EGL_EXTERNAL) {
       virgl_egl_destroy_context(egl, ctx);
       return;
    }
@@ -170,14 +179,15 @@ void vrend_winsys_destroy_context(virgl_renderer_gl_context ctx)
 #endif
 }
 
-int vrend_winsys_make_context_current(virgl_renderer_gl_context ctx)
+int vrend_winsys_make_context_current(UNUSED virgl_renderer_gl_context ctx)
 {
    int ret = -1;
 #ifdef HAVE_EPOXY_EGL_H
-   if (use_context == CONTEXT_EGL) {
+   if (use_context == CONTEXT_EGL ||
+       use_context == CONTEXT_EGL_EXTERNAL) {
       ret = virgl_egl_make_context_current(egl, ctx);
       if (ret)
-         vrend_printf("%s: Error switching context: %s\n",
+         virgl_error("%s: Error switching context: %s\n",
                       __func__, virgl_egl_error_string(eglGetError()));
    }
 #endif
@@ -185,7 +195,7 @@ int vrend_winsys_make_context_current(virgl_renderer_gl_context ctx)
    if (use_context == CONTEXT_GLX) {
       ret = virgl_glx_make_context_current(glx_info, ctx);
       if (ret)
-         vrend_printf("%s: Error switching context\n", __func__);
+         virgl_error("%s: Error switching context\n", __func__);
    }
 #endif
    assert(!ret && "Failed to switch GL context");
@@ -201,25 +211,34 @@ int vrend_winsys_has_gl_colorspace(void)
 #endif
    return use_context == CONTEXT_NONE ||
          use_context == CONTEXT_GLX ||
-         (use_context == CONTEXT_EGL && egl_colorspace);
+         (use_context == CONTEXT_EGL && egl_colorspace) ||
+         (use_context == CONTEXT_EGL_EXTERNAL && egl_colorspace);
 }
 
-int vrend_winsys_get_fourcc_for_texture(uint32_t tex_id, uint32_t format, int *fourcc)
+int vrend_winsys_get_attrs_for_texture(uint32_t tex_id, uint32_t format, int *fourcc,
+                                       bool *has_dmabuf_export,
+                                       int *planes, uint64_t *modifiers)
 {
-#if defined(HAVE_EPOXY_EGL_H) && HAVE_EGL_GBM_H == 1
+#ifdef ENABLE_GBM
    if (use_context == CONTEXT_EGL)
-      return virgl_egl_get_fourcc_for_texture(egl, tex_id, format, fourcc);
+      return virgl_egl_get_attrs_for_texture(egl, tex_id, format, fourcc,
+                                             has_dmabuf_export,
+                                             planes, modifiers);
 #else
    (void)tex_id;
    (void)format;
    (void)fourcc;
+   (void)planes;
+   (void)modifiers;
+   if (has_dmabuf_export)
+      *has_dmabuf_export = false;
 #endif
    return 0;
 }
 
 int vrend_winsys_get_fd_for_texture(uint32_t tex_id, int *fd)
 {
-#if defined(HAVE_EPOXY_EGL_H) && HAVE_EGL_GBM_H == 1
+#ifdef ENABLE_GBM
    if (!egl)
       return -1;
 
@@ -233,7 +252,7 @@ int vrend_winsys_get_fd_for_texture(uint32_t tex_id, int *fd)
 
 int vrend_winsys_get_fd_for_texture2(uint32_t tex_id, int *fd, int *stride, int *offset)
 {
-#if defined(HAVE_EPOXY_EGL_H) && HAVE_EGL_GBM_H == 1
+#ifdef ENABLE_GBM
    if (!egl)
       return -1;
 

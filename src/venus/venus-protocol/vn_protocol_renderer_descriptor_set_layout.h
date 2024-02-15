@@ -11,6 +11,9 @@
 #include "vn_protocol_renderer_structs.h"
 
 #pragma GCC diagnostic push
+#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ >= 12
+#pragma GCC diagnostic ignored "-Wdangling-pointer"
+#endif
 #pragma GCC diagnostic ignored "-Wpointer-arith"
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
@@ -25,7 +28,7 @@ vn_decode_VkDescriptorSetLayoutBinding_temp(struct vn_cs_decoder *dec, VkDescrip
     vn_decode_VkFlags(dec, &val->stageFlags);
     if (vn_peek_array_size(dec)) {
         const uint32_t iter_count = vn_decode_array_size(dec, val->descriptorCount);
-        val->pImmutableSamplers = vn_cs_decoder_alloc_temp(dec, sizeof(*val->pImmutableSamplers) * iter_count);
+        val->pImmutableSamplers = vn_cs_decoder_alloc_temp_array(dec, sizeof(*val->pImmutableSamplers), iter_count);
         if (!val->pImmutableSamplers) return;
         for (uint32_t i = 0; i < iter_count; i++)
             vn_decode_VkSampler_lookup(dec, &((VkSampler *)val->pImmutableSamplers)[i]);
@@ -66,7 +69,7 @@ vn_decode_VkDescriptorSetLayoutBindingFlagsCreateInfo_self_temp(struct vn_cs_dec
     vn_decode_uint32_t(dec, &val->bindingCount);
     if (vn_peek_array_size(dec)) {
         const uint32_t iter_count = vn_decode_array_size(dec, val->bindingCount);
-        val->pBindingFlags = vn_cs_decoder_alloc_temp(dec, sizeof(*val->pBindingFlags) * iter_count);
+        val->pBindingFlags = vn_cs_decoder_alloc_temp_array(dec, sizeof(*val->pBindingFlags), iter_count);
         if (!val->pBindingFlags) return;
         for (uint32_t i = 0; i < iter_count; i++)
             vn_decode_VkFlags(dec, &((VkDescriptorBindingFlags *)val->pBindingFlags)[i]);
@@ -137,12 +140,12 @@ vn_decode_VkDescriptorSetLayoutCreateInfo_pnext_temp(struct vn_cs_decoder *dec)
             vn_decode_VkDescriptorSetLayoutBindingFlagsCreateInfo_self_temp(dec, (VkDescriptorSetLayoutBindingFlagsCreateInfo *)pnext);
         }
         break;
-    case VK_STRUCTURE_TYPE_MUTABLE_DESCRIPTOR_TYPE_CREATE_INFO_VALVE:
-        pnext = vn_cs_decoder_alloc_temp(dec, sizeof(VkMutableDescriptorTypeCreateInfoVALVE));
+    case VK_STRUCTURE_TYPE_MUTABLE_DESCRIPTOR_TYPE_CREATE_INFO_EXT:
+        pnext = vn_cs_decoder_alloc_temp(dec, sizeof(VkMutableDescriptorTypeCreateInfoEXT));
         if (pnext) {
             pnext->sType = stype;
             pnext->pNext = vn_decode_VkDescriptorSetLayoutCreateInfo_pnext_temp(dec);
-            vn_decode_VkMutableDescriptorTypeCreateInfoVALVE_self_temp(dec, (VkMutableDescriptorTypeCreateInfoVALVE *)pnext);
+            vn_decode_VkMutableDescriptorTypeCreateInfoEXT_self_temp(dec, (VkMutableDescriptorTypeCreateInfoEXT *)pnext);
         }
         break;
     default:
@@ -163,7 +166,7 @@ vn_decode_VkDescriptorSetLayoutCreateInfo_self_temp(struct vn_cs_decoder *dec, V
     vn_decode_uint32_t(dec, &val->bindingCount);
     if (vn_peek_array_size(dec)) {
         const uint32_t iter_count = vn_decode_array_size(dec, val->bindingCount);
-        val->pBindings = vn_cs_decoder_alloc_temp(dec, sizeof(*val->pBindings) * iter_count);
+        val->pBindings = vn_cs_decoder_alloc_temp_array(dec, sizeof(*val->pBindings), iter_count);
         if (!val->pBindings) return;
         for (uint32_t i = 0; i < iter_count; i++)
             vn_decode_VkDescriptorSetLayoutBinding_temp(dec, &((VkDescriptorSetLayoutBinding *)val->pBindings)[i]);
@@ -212,8 +215,8 @@ vn_replace_VkDescriptorSetLayoutCreateInfo_handle(VkDescriptorSetLayoutCreateInf
         case VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO:
             vn_replace_VkDescriptorSetLayoutBindingFlagsCreateInfo_handle_self((VkDescriptorSetLayoutBindingFlagsCreateInfo *)pnext);
             break;
-        case VK_STRUCTURE_TYPE_MUTABLE_DESCRIPTOR_TYPE_CREATE_INFO_VALVE:
-            vn_replace_VkMutableDescriptorTypeCreateInfoVALVE_handle_self((VkMutableDescriptorTypeCreateInfoVALVE *)pnext);
+        case VK_STRUCTURE_TYPE_MUTABLE_DESCRIPTOR_TYPE_CREATE_INFO_EXT:
+            vn_replace_VkMutableDescriptorTypeCreateInfoEXT_handle_self((VkMutableDescriptorTypeCreateInfoEXT *)pnext);
             break;
         default:
             /* ignore unknown/unsupported struct */
@@ -503,8 +506,8 @@ static inline void vn_dispatch_vkCreateDescriptorSetLayout(struct vn_dispatch_co
         vn_dispatch_debug_log(ctx, "vkCreateDescriptorSetLayout returned %d", args.ret);
 #endif
 
-    if (!vn_cs_decoder_get_fatal(ctx->decoder) && (flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT))
-       vn_encode_vkCreateDescriptorSetLayout_reply(ctx->encoder, &args);
+    if ((flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT) && !vn_cs_decoder_get_fatal(ctx->decoder))
+        vn_encode_vkCreateDescriptorSetLayout_reply(ctx->encoder, &args);
 
     vn_cs_decoder_reset_temp_pool(ctx->decoder);
 }
@@ -527,9 +530,8 @@ static inline void vn_dispatch_vkDestroyDescriptorSetLayout(struct vn_dispatch_c
     if (!vn_cs_decoder_get_fatal(ctx->decoder))
         ctx->dispatch_vkDestroyDescriptorSetLayout(ctx, &args);
 
-
-    if (!vn_cs_decoder_get_fatal(ctx->decoder) && (flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT))
-       vn_encode_vkDestroyDescriptorSetLayout_reply(ctx->encoder, &args);
+    if ((flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT) && !vn_cs_decoder_get_fatal(ctx->decoder))
+        vn_encode_vkDestroyDescriptorSetLayout_reply(ctx->encoder, &args);
 
     vn_cs_decoder_reset_temp_pool(ctx->decoder);
 }
@@ -552,9 +554,8 @@ static inline void vn_dispatch_vkGetDescriptorSetLayoutSupport(struct vn_dispatc
     if (!vn_cs_decoder_get_fatal(ctx->decoder))
         ctx->dispatch_vkGetDescriptorSetLayoutSupport(ctx, &args);
 
-
-    if (!vn_cs_decoder_get_fatal(ctx->decoder) && (flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT))
-       vn_encode_vkGetDescriptorSetLayoutSupport_reply(ctx->encoder, &args);
+    if ((flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT) && !vn_cs_decoder_get_fatal(ctx->decoder))
+        vn_encode_vkGetDescriptorSetLayoutSupport_reply(ctx->encoder, &args);
 
     vn_cs_decoder_reset_temp_pool(ctx->decoder);
 }

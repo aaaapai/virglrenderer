@@ -764,6 +764,12 @@ key_u64_equals(const void *a, const void *b)
 
 #define FREED_KEY_VALUE 0
 
+struct hash_table_u64 {
+   struct hash_table *table;
+   void *freed_key_data;
+   void *deleted_key_data;
+};
+
 struct hash_table_u64 *
 _mesa_hash_table_u64_create(void *mem_ctx)
 {
@@ -810,10 +816,29 @@ _mesa_hash_table_u64_clear(struct hash_table_u64 *ht)
 }
 
 void
-_mesa_hash_table_u64_destroy(struct hash_table_u64 *ht)
+_mesa_hash_table_u64_destroy(struct hash_table_u64 *ht,
+                             void (*delete_function)(struct hash_entry *entry))
 {
    if (!ht)
       return;
+
+   if (delete_function) {
+      if (ht->deleted_key_data) {
+         struct hash_entry entry = {
+            .data = ht->deleted_key_data
+         };
+         delete_function(&entry);
+      }
+      if (ht->freed_key_data) {
+         struct hash_entry entry = {
+            .data = ht->freed_key_data
+         };
+         delete_function(&entry);
+      }
+      hash_table_foreach(ht->table, entry) {
+         delete_function(entry);
+      }
+   }
 
    _mesa_hash_table_u64_clear(ht);
    _mesa_hash_table_destroy(ht->table, NULL);
@@ -904,3 +929,21 @@ _mesa_hash_table_u64_remove(struct hash_table_u64 *ht, uint64_t key)
       free(_key);
    }
 }
+
+void
+hash_table_u64_call_foreach(struct hash_table_u64 *ht,
+                            void (*callback)(const void *key,
+                                             void *data,
+                                             void *closure),
+                            void *closure)
+{
+   if (ht->freed_key_data)
+      callback(FREED_KEY_VALUE, ht->freed_key_data, closure);
+
+   if (ht->deleted_key_data)
+      callback((void *)DELETED_KEY_VALUE, ht->deleted_key_data, closure);
+
+   hash_table_foreach(ht->table, entry)
+       callback(entry->key, entry->data, closure);
+}
+

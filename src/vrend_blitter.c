@@ -27,9 +27,11 @@
 
 #include <stdio.h>
 
+#include "util/hash_table.h"
+#include "util/macros.h"
 #include "util/u_memory.h"
 #include "util/u_format.h"
-#include "util/u_hash_table.h"
+#include "util/u_pointer.h"
 #include "util/u_texture.h"
 
 #include "vrend_shader.h"
@@ -63,7 +65,7 @@ struct vrend_blitter_ctx {
 
    GLuint vaoid;
 
-   struct util_hash_table *blit_programs;
+   struct hash_table_u64 *blit_programs;
 
    GLuint vs;
    GLuint fb_id;
@@ -88,19 +90,38 @@ struct blit_swizzle_and_type {
   bool is_array;
 };
 
-struct blit_prog_key {
+#pragma pack(push,1)
+struct PACKED blit_prog_key {
    bool is_color: 1;
    bool is_msaa: 1;
    bool manual_srgb_decode: 1;
    bool manual_srgb_encode: 1;
+   enum pipe_texture_target pipe_tex_target: 4;
    uint8_t num_samples;
-   int pipe_tex_target;
    struct {
-      bool has_swizzle;
-      enum virgl_formats src_format;
-      uint8_t swizzle[4];
+      bool has_swizzle: 1;
+      enum virgl_formats src_format: 9;
+      enum pipe_swizzle swizzle1: 3;
+      enum pipe_swizzle swizzle2: 3;
+      enum pipe_swizzle swizzle3: 3;
+      enum pipe_swizzle swizzle4: 3;
    } texcol;
 };
+#pragma pack(pop)
+
+static_assert(sizeof(struct blit_prog_key) <= sizeof(uint64_t),
+              "struct blit_prog_key needs to fit into a hashtable64 key");
+
+static inline uint64_t
+prog_key_to_uint64( struct blit_prog_key prog_key )
+{
+   union {
+      struct blit_prog_key prog_key;
+      uint64_t u;
+   } pu;
+   pu.prog_key = prog_key;
+   return pu.u;
+}
 
 static GLint blit_shader_build_and_check(GLenum shader_type, const char *buf)
 {
@@ -114,8 +135,8 @@ static GLint blit_shader_build_and_check(GLenum shader_type, const char *buf)
       char infolog[65536];
       int len;
       glGetShaderInfoLog(id, 65536, &len, infolog);
-      vrend_printf("shader failed to compile\n%s\n", infolog);
-      vrend_printf("GLSL:\n%s\n", buf);
+      virgl_error("Shader failed to compile\n%s\n", infolog);
+      virgl_error("GLSL:\n%s\n", buf);
       glDeleteShader(id);
       return 0;
    }
@@ -132,7 +153,7 @@ static bool blit_shader_link_and_check(GLuint prog_id)
       char infolog[65536];
       int len;
       glGetProgramInfoLog(prog_id, 65536, &len, infolog);
-      vrend_printf("got error linking\n%s\n", infolog);
+      virgl_error("Got error linking\n%s\n", infolog);
       /* dump shaders */
       glDeleteProgram(prog_id);
       return false;
@@ -140,13 +161,13 @@ static bool blit_shader_link_and_check(GLuint prog_id)
    return true;
 }
 
-static void create_dest_swizzle_snippet(const uint8_t swizzle[4],
+static void create_dest_swizzle_snippet(const enum pipe_swizzle swizzle[4],
                                         char snippet[DEST_SWIZZLE_SNIPPET_SIZE])
 {
    static const uint8_t invalid_swizzle = 0xff;
    ssize_t si = 0;
-   uint8_t inverse[4] = {invalid_swizzle, invalid_swizzle,
-                         invalid_swizzle, invalid_swizzle};
+   enum pipe_swizzle inverse[4] = {invalid_swizzle, invalid_swizzle,
+                                   invalid_swizzle, invalid_swizzle};
 
    for (int i = 0; i < 4; ++i) {
       if (swizzle[i] > 3)
@@ -189,7 +210,7 @@ static enum tgsi_return_type tgsi_ret_for_format(enum virgl_formats format)
    return TGSI_RETURN_TYPE_UNORM;
 }
 
-static void blit_get_swizzle(int tgsi_tex_target, unsigned flags,
+static void blit_get_swizzle(enum tgsi_texture_type tgsi_tex_target, unsigned flags,
                              struct blit_swizzle_and_type *retval)
 {
    retval->swizzle = "";
@@ -252,9 +273,9 @@ static void blit_get_swizzle(int tgsi_tex_target, unsigned flags,
 }
 
 static GLuint blit_build_frag_tex_col(struct vrend_blitter_ctx *blit_ctx,
-                                      int tgsi_tex_target,
+                                      enum tgsi_texture_type tgsi_tex_target,
                                       enum tgsi_return_type tgsi_ret,
-                                      const uint8_t swizzle[4],
+                                      const enum pipe_swizzle swizzle[4],
                                       int nr_samples,
                                       uint32_t flags)
 {
@@ -263,7 +284,7 @@ static GLuint blit_build_frag_tex_col(struct vrend_blitter_ctx *blit_ctx,
    unsigned swizzle_flags = 0;
    char dest_swizzle_snippet[DEST_SWIZZLE_SNIPPET_SIZE] = "texel";
    const char *ext_str = "";
-   bool msaa = nr_samples > 0;
+   bool msaa = nr_samples > 1;
 
    if (msaa && !blit_ctx->use_gles)
       ext_str = "#extension GL_ARB_texture_multisample : enable\n";
@@ -320,7 +341,7 @@ static GLuint blit_build_frag_tex_col(struct vrend_blitter_ctx *blit_ctx,
    return blit_shader_build_and_check(GL_FRAGMENT_SHADER, shader_buf);
 }
 
-static GLuint blit_build_frag_depth(struct vrend_blitter_ctx *blit_ctx, int tgsi_tex_target, bool msaa)
+static GLuint blit_build_frag_depth(struct vrend_blitter_ctx *blit_ctx, enum tgsi_texture_type tgsi_tex_target, bool msaa)
 {
    char shader_buf[4096];
    struct blit_swizzle_and_type swizzle_and_type;
@@ -346,43 +367,43 @@ static GLuint blit_build_frag_depth(struct vrend_blitter_ctx *blit_ctx, int tgsi
    return blit_shader_build_and_check(GL_FRAGMENT_SHADER, shader_buf);
 }
 
-static GLuint blit_get_frag_tex_writedepth(struct vrend_blitter_ctx *blit_ctx, int pipe_tex_target, unsigned nr_samples)
+static GLuint blit_get_frag_tex_writedepth(struct vrend_blitter_ctx *blit_ctx, enum pipe_texture_target pipe_tex_target, unsigned nr_samples)
 {
    struct blit_prog_key key = {
          .is_color = false,
-         .is_msaa = nr_samples > 0,
+         .is_msaa = nr_samples > 1,
          .num_samples = nr_samples,
          .pipe_tex_target = pipe_tex_target,
       };
 
-      void *shader = util_hash_table_get(blit_ctx->blit_programs, &key);
+      void *shader = _mesa_hash_table_u64_search(blit_ctx->blit_programs, prog_key_to_uint64(key));
       GLuint prog_id;
       if (shader) {
          prog_id = (GLuint)((size_t)(shader) & 0xffffffff);
       } else {
          prog_id = glCreateProgram();
          glAttachShader(prog_id, blit_ctx->vs);
-         unsigned tgsi_tex = util_pipe_tex_to_tgsi_tex(pipe_tex_target, key.num_samples);
+         enum tgsi_texture_type tgsi_tex = util_pipe_tex_to_tgsi_tex(pipe_tex_target, key.num_samples);
          GLuint fs_id = blit_build_frag_depth(blit_ctx, tgsi_tex, key.is_msaa);
          glAttachShader(prog_id, fs_id);
          if(!blit_shader_link_and_check(prog_id))
             return 0;
 
          glDeleteShader(fs_id);
-         util_hash_table_set(blit_ctx->blit_programs, &key, (void *)(uintptr_t)prog_id);
+         _mesa_hash_table_u64_insert(blit_ctx->blit_programs, prog_key_to_uint64(key), (void *)(uintptr_t)prog_id);
       }
       return prog_id;
 }
 
 static GLuint blit_get_frag_tex_col(struct vrend_blitter_ctx *blit_ctx,
-                                       int pipe_tex_target,
+                                       enum pipe_texture_target pipe_tex_target,
                                        unsigned nr_samples,
                                        const struct vrend_format_table *src_entry,
-                                       const uint8_t swizzle[static 4],
+                                       const enum pipe_swizzle swizzle[static 4],
                                        uint32_t flags)
 {
    bool needs_swizzle = false;
-   for (uint i = 0; i < 4; ++i) {
+   for (unsigned i = 0; i < 4; ++i) {
       if (swizzle[i] != i) {
          needs_swizzle = true;
          break;
@@ -391,7 +412,7 @@ static GLuint blit_get_frag_tex_col(struct vrend_blitter_ctx *blit_ctx,
 
    struct blit_prog_key key = {
       .is_color = true,
-      .is_msaa = nr_samples > 0,
+      .is_msaa = nr_samples > 1,
       .manual_srgb_decode = has_bit(flags, BLIT_MANUAL_SRGB_DECODE),
       .manual_srgb_encode = has_bit(flags, BLIT_MANUAL_SRGB_ENCODE),
       .num_samples = nr_samples,
@@ -400,20 +421,24 @@ static GLuint blit_get_frag_tex_col(struct vrend_blitter_ctx *blit_ctx,
 
    key.texcol.src_format = src_entry->format;
    key.texcol.has_swizzle = needs_swizzle;
-   if (key.texcol.has_swizzle)
-      memcpy(key.texcol.swizzle, swizzle, 4);
+   if (key.texcol.has_swizzle) {
+      key.texcol.swizzle1 = swizzle[0];
+      key.texcol.swizzle2 = swizzle[1];
+      key.texcol.swizzle3 = swizzle[2];
+      key.texcol.swizzle4 = swizzle[3];
+   }
 
    GLuint prog_id = 0;
-   void *shader = util_hash_table_get(blit_ctx->blit_programs, &key);
+   void *shader = _mesa_hash_table_u64_search(blit_ctx->blit_programs, prog_key_to_uint64(key));
 
    if (shader) {
       prog_id = (GLuint)((size_t)(shader) & 0xffffffff);
    } else {
       prog_id = glCreateProgram();
       glAttachShader(prog_id, blit_ctx->vs);
-      unsigned tgsi_tex = util_pipe_tex_to_tgsi_tex(pipe_tex_target, key.num_samples);
+      enum tgsi_texture_type tgsi_tex = util_pipe_tex_to_tgsi_tex(pipe_tex_target, key.num_samples);
       enum tgsi_return_type tgsi_ret = tgsi_ret_for_format(src_entry->format);
-      int msaa_samples = nr_samples > 0 ? (tgsi_ret == TGSI_RETURN_TYPE_UNORM ? nr_samples : 1) : 0;
+      int msaa_samples = nr_samples > 1 ? (tgsi_ret == TGSI_RETURN_TYPE_UNORM ? nr_samples : 1) : 0;
 
       GLuint fs_id = blit_build_frag_tex_col(blit_ctx, tgsi_tex, tgsi_ret,
                                              swizzle, msaa_samples, flags);
@@ -422,33 +447,11 @@ static GLuint blit_get_frag_tex_col(struct vrend_blitter_ctx *blit_ctx,
          return 0;
 
       glDeleteShader(fs_id);
-      util_hash_table_set(blit_ctx->blit_programs, &key, (void *)(uintptr_t)prog_id);
+      _mesa_hash_table_u64_insert(blit_ctx->blit_programs, prog_key_to_uint64(key), (void *)(uintptr_t)prog_id);
    }
 
    return prog_id;
 }
-
-static uint32_t program_hash_func(void *key)
-{
-   return XXH32(key, sizeof(struct blit_prog_key), 0);
-}
-
-static int program_comp_func(void *key1, void *key2)
-{
-   return memcmp(key1, key2, sizeof(struct blit_prog_key));
-}
-
-static void program_destroy_func(void *shader_id)
-{
-   GLuint id;
-#if __SIZEOF_POINTER__  == 8
-   id = ((uint64_t)(shader_id)) & 0xffffffff;
-#else
-   id = (GLuint)(shader_id);
-#endif
-   glDeleteProgram(id);
-}
-
 
 static void vrend_renderer_init_blit_ctx(struct vrend_blitter_ctx *blit_ctx)
 {
@@ -459,12 +462,11 @@ static void vrend_renderer_init_blit_ctx(struct vrend_blitter_ctx *blit_ctx)
       return;
    }
 
-   vrend_blit_ctx.blit_programs = util_hash_table_create(program_hash_func,
-                                                         program_comp_func,
-                                                         program_destroy_func);
+   vrend_blit_ctx.blit_programs = _mesa_hash_table_u64_create(NULL);
 
    blit_ctx->use_gles = epoxy_is_desktop_gl() == 0;
    ctx_params.shared = true;
+   ctx_params.compat_ctx = false;
    for (uint32_t i = 0; i < ARRAY_SIZE(gl_versions); i++) {
       ctx_params.major_ver = gl_versions[i].major;
       ctx_params.minor_ver = gl_versions[i].minor;
@@ -475,7 +477,7 @@ static void vrend_renderer_init_blit_ctx(struct vrend_blitter_ctx *blit_ctx)
    }
 
    if (!blit_ctx->gl_context) {
-      vrend_printf("virglrenderer: Unable to create blit context");
+      virgl_error("virglrenderer: Unable to create blit context");
       abort();
    }
 
@@ -576,7 +578,7 @@ static void blitter_set_texcoords(struct vrend_blitter_ctx *blit_ctx,
                                         /* pointer, stride in floats */
                                         &face_coord[0][0], 2,
                                         &blit_ctx->vertices[0].tex.x, 8,
-                                        FALSE);
+                                        false);
    } else {
       set_texcoords_in_vertices(coord, &blit_ctx->vertices[0].tex.x, 8);
    }
@@ -623,15 +625,15 @@ static void set_dsa_write_depth_keep_stencil(void)
    glDepthMask(GL_TRUE);
 }
 
-static inline GLenum to_gl_swizzle(int swizzle)
+static inline GLenum to_gl_swizzle(enum pipe_swizzle swizzle)
 {
    switch (swizzle) {
-   case PIPE_SWIZZLE_RED: return GL_RED;
-   case PIPE_SWIZZLE_GREEN: return GL_GREEN;
-   case PIPE_SWIZZLE_BLUE: return GL_BLUE;
-   case PIPE_SWIZZLE_ALPHA: return GL_ALPHA;
-   case PIPE_SWIZZLE_ZERO: return GL_ZERO;
-   case PIPE_SWIZZLE_ONE: return GL_ONE;
+   case PIPE_SWIZZLE_X: return GL_RED;
+   case PIPE_SWIZZLE_Y: return GL_GREEN;
+   case PIPE_SWIZZLE_Z: return GL_BLUE;
+   case PIPE_SWIZZLE_W: return GL_ALPHA;
+   case PIPE_SWIZZLE_0: return GL_ZERO;
+   case PIPE_SWIZZLE_1: return GL_ONE;
    default:
       assert(0);
       return 0;
@@ -837,7 +839,7 @@ void vrend_renderer_blit_gl(ASSERTED struct vrend_context *ctx,
                                       flags);
    }
    if (!prog_id) {
-      vrend_printf("Blitter: unable to create or find shader program\n");
+      virgl_error("Blitter: unable to create or find shader program\n");
       return;
    }
 
@@ -904,11 +906,17 @@ void vrend_renderer_blit_gl(ASSERTED struct vrend_context *ctx,
    glBindTexture(src_res->target, 0);
 }
 
+static void delete_program_cb(struct hash_entry *entry)
+{
+   glDeleteProgram((GLuint)pointer_to_uintptr(entry->data));
+}
+
 void vrend_blitter_fini(void)
 {
    vrend_blit_ctx.initialised = false;
-   vrend_clicbs->destroy_gl_context(vrend_blit_ctx.gl_context);
    if (vrend_blit_ctx.blit_programs)
-      util_hash_table_destroy(vrend_blit_ctx.blit_programs);
+      _mesa_hash_table_u64_destroy(vrend_blit_ctx.blit_programs, delete_program_cb);
+   vrend_clicbs->destroy_gl_context(vrend_blit_ctx.gl_context);
    memset(&vrend_blit_ctx, 0, sizeof(vrend_blit_ctx));
 }
+

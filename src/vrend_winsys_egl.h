@@ -29,11 +29,22 @@
 
 #include <epoxy/egl.h>
 
+#ifdef WIN32
+#include <d3d11.h>
+#endif
+
 struct virgl_egl;
+
+#ifdef ENABLE_GBM
 struct virgl_gbm;
 struct gbm_bo;
+#endif
 
+#ifdef ENABLE_GBM
 struct virgl_egl *virgl_egl_init(struct virgl_gbm *gbm, bool surfaceless, bool gles);
+#else
+struct virgl_egl *virgl_egl_init(EGLNativeDisplayType display_id, bool surfaceless, bool gles);
+#endif
 
 void virgl_egl_destroy(struct virgl_egl *egl);
 
@@ -50,8 +61,10 @@ virgl_renderer_gl_context virgl_egl_get_current_context(struct virgl_egl *egl);
 
 bool virgl_has_egl_khr_gl_colorspace(struct virgl_egl *egl);
 
-int virgl_egl_get_fourcc_for_texture(struct virgl_egl *egl, uint32_t tex_id, uint32_t format,
-                                     int *fourcc);
+#ifdef ENABLE_GBM
+int virgl_egl_get_attrs_for_texture(struct virgl_egl *egl, uint32_t tex_id, uint32_t format,
+                                    int *fourcc, bool *has_dmabuf_export,
+                                    int *planes, uint64_t *modifiers);
 
 int virgl_egl_get_fd_for_texture(struct virgl_egl *egl, uint32_t tex_id, int *fd);
 
@@ -71,6 +84,7 @@ void virgl_egl_image_destroy(struct virgl_egl *egl, void *image);
 
 void *virgl_egl_image_from_gbm_bo(struct virgl_egl *egl, struct gbm_bo *bo);
 void *virgl_egl_aux_plane_image_from_gbm_bo(struct virgl_egl *egl, struct gbm_bo *bo, int plane);
+#endif
 
 bool virgl_egl_supports_fences(struct virgl_egl *egl);
 EGLSyncKHR virgl_egl_fence_create(struct virgl_egl *egl);
@@ -80,4 +94,11 @@ bool virgl_egl_export_signaled_fence(struct virgl_egl *egl, int *out_fd);
 bool virgl_egl_export_fence(struct virgl_egl *egl, EGLSyncKHR fence, int *out_fd);
 bool virgl_egl_different_gpu(struct virgl_egl *egl);
 const char *virgl_egl_error_string(EGLint error);
+
+#ifdef WIN32
+bool virgl_egl_win32_create_d3d11_texture2d(struct virgl_egl *egl,
+                                            const D3D11_TEXTURE2D_DESC *desc, ID3D11Texture2D **tex);
+EGLImageKHR virgl_egl_win32_image_from_d3d11_texture2d(struct virgl_egl *egl, ID3D11Texture2D *tex);
+#endif
+
 #endif

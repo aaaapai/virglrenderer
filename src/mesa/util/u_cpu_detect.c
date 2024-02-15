@@ -186,8 +186,8 @@ check_os_altivec_support(void)
    if (setjmp(__lv_powerpc_jmpbuf)) {
       signal(SIGILL, SIG_DFL);
    } else {
-      boolean enable_altivec = TRUE;    /* Default: enable  if available, and if not overridden */
-      boolean enable_vsx = TRUE;
+      bool enable_altivec = true;    /* Default: enable  if available, and if not overridden */
+      bool enable_vsx = true;
 #ifdef DEBUG
       /* Disabling Altivec code generation is not the same as disabling VSX code generation,
        * which can be done simply by passing -mattr=-vsx to the LLVM compiler; cf.
@@ -196,13 +196,13 @@ check_os_altivec_support(void)
        */
       char *env_control = getenv("GALLIVM_ALTIVEC");    /* 1=enable (default); 0=disable */
       if (env_control && env_control[0] == '0') {
-         enable_altivec = FALSE;
+         enable_altivec = false;
       }
 #endif
       /* VSX instructions can be explicitly enabled/disabled via GALLIVM_VSX=1 or 0 */
       char *env_vsx = getenv("GALLIVM_VSX");
       if (env_vsx && env_vsx[0] == '0') {
-         enable_vsx = FALSE;
+         enable_vsx = false;
       }
       if (enable_altivec) {
          __lv_powerpc_canjump = 1;
@@ -359,7 +359,7 @@ static inline uint64_t xgetbv(void)
 
 
 #if defined(PIPE_ARCH_X86)
-PIPE_ALIGN_STACK static inline boolean sse2_has_daz(void)
+PIPE_ALIGN_STACK static inline bool sse2_has_daz(void)
 {
    struct {
       uint32_t pad1[7];
@@ -681,7 +681,6 @@ util_cpu_detect_once(void)
 #if defined(PIPE_ARCH_X86) || defined(PIPE_ARCH_X86_64)
    if (has_cpuid()) {
       uint32_t regs[4];
-      uint32_t regs2[4];
 
       util_cpu_caps.cacheline = 32;
 
@@ -690,6 +689,7 @@ util_cpu_detect_once(void)
 
       if (regs[0] >= 0x00000001) {
          unsigned int cacheline;
+         uint32_t regs2[4];
 
          cpuid (0x00000001, regs2);
 
@@ -739,6 +739,24 @@ util_cpu_detect_once(void)
          cacheline = ((regs2[1] >> 8) & 0xFF) * 8;
          if (cacheline > 0)
             util_cpu_caps.cacheline = cacheline;
+
+         // check for avx512
+         if (((regs2[2] >> 27) & 1) && // OSXSAVE
+             (xgetbv() & (0x7 << 5)) && // OPMASK: upper-256 enabled by OS
+             ((xgetbv() & 6) == 6)) { // XMM/YMM enabled by OS
+            uint32_t regs3[4];
+            cpuid_count(0x00000007, 0x00000000, regs3);
+            util_cpu_caps.has_avx512f    = (regs3[1] >> 16) & 1;
+            util_cpu_caps.has_avx512dq   = (regs3[1] >> 17) & 1;
+            util_cpu_caps.has_avx512ifma = (regs3[1] >> 21) & 1;
+            util_cpu_caps.has_avx512pf   = (regs3[1] >> 26) & 1;
+            util_cpu_caps.has_avx512er   = (regs3[1] >> 27) & 1;
+            util_cpu_caps.has_avx512cd   = (regs3[1] >> 28) & 1;
+            util_cpu_caps.has_avx512bw   = (regs3[1] >> 30) & 1;
+            util_cpu_caps.has_avx512vl   = (regs3[1] >> 31) & 1;
+            util_cpu_caps.has_avx512vbmi = (regs3[2] >>  1) & 1;
+         }
+
       }
       if (util_cpu_caps.has_avx && regs[0] >= 0x00000007) {
          uint32_t regs7[4];
@@ -746,22 +764,6 @@ util_cpu_detect_once(void)
          util_cpu_caps.has_avx2 = (regs7[1] >> 5) & 1;
       }
 
-      // check for avx512
-      if (((regs2[2] >> 27) & 1) && // OSXSAVE
-          (xgetbv() & (0x7 << 5)) && // OPMASK: upper-256 enabled by OS
-          ((xgetbv() & 6) == 6)) { // XMM/YMM enabled by OS
-         uint32_t regs3[4];
-         cpuid_count(0x00000007, 0x00000000, regs3);
-         util_cpu_caps.has_avx512f    = (regs3[1] >> 16) & 1;
-         util_cpu_caps.has_avx512dq   = (regs3[1] >> 17) & 1;
-         util_cpu_caps.has_avx512ifma = (regs3[1] >> 21) & 1;
-         util_cpu_caps.has_avx512pf   = (regs3[1] >> 26) & 1;
-         util_cpu_caps.has_avx512er   = (regs3[1] >> 27) & 1;
-         util_cpu_caps.has_avx512cd   = (regs3[1] >> 28) & 1;
-         util_cpu_caps.has_avx512bw   = (regs3[1] >> 30) & 1;
-         util_cpu_caps.has_avx512vl   = (regs3[1] >> 31) & 1;
-         util_cpu_caps.has_avx512vbmi = (regs3[2] >>  1) & 1;
-      }
 
       if (regs[1] == 0x756e6547 && regs[2] == 0x6c65746e && regs[3] == 0x49656e69) {
          /* GenuineIntel */
@@ -771,7 +773,7 @@ util_cpu_detect_once(void)
       cpuid(0x80000000, regs);
 
       if (regs[0] >= 0x80000001) {
-
+         uint32_t regs2[4];
          cpuid(0x80000001, regs2);
 
          util_cpu_caps.has_mmx  |= (regs2[3] >> 23) & 1;
@@ -784,6 +786,7 @@ util_cpu_detect_once(void)
       }
 
       if (regs[0] >= 0x80000006) {
+         uint32_t regs2[4];
          /* should we really do this if the clflush size above worked? */
          unsigned int cacheline;
          cpuid(0x80000006, regs2);

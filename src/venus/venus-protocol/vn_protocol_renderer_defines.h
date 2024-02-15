@@ -21,8 +21,10 @@
 #define VK_STRUCTURE_TYPE_RING_CREATE_INFO_MESA ((VkStructureType)1000384000)
 #define VK_STRUCTURE_TYPE_MEMORY_RESOURCE_PROPERTIES_MESA ((VkStructureType)1000384001)
 #define VK_STRUCTURE_TYPE_IMPORT_MEMORY_RESOURCE_INFO_MESA ((VkStructureType)1000384002)
-#define VK_STRUCTURE_TYPE_MEMORY_RESOURCE_ALLOCATION_SIZE_PROPERTIES_100000_MESA ((VkStructureType)1000384003)
-#define VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_RESOURCE_INFO_100000_MESA ((VkStructureType)1000384004)
+#define VK_STRUCTURE_TYPE_MEMORY_RESOURCE_ALLOCATION_SIZE_PROPERTIES_MESA ((VkStructureType)1000384003)
+#define VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_RESOURCE_INFO_MESA ((VkStructureType)1000384004)
+#define VK_STRUCTURE_TYPE_DEVICE_QUEUE_TIMELINE_INFO_MESA ((VkStructureType)1000384005)
+#define VK_STRUCTURE_TYPE_RING_MONITOR_INFO_MESA ((VkStructureType)1000384006)
 
 typedef enum VkCommandTypeEXT {
     VK_COMMAND_TYPE_vkCreateInstance_EXT = 0,
@@ -329,6 +331,8 @@ typedef enum VkCommandTypeEXT {
     VK_COMMAND_TYPE_vkGetMemoryFdPropertiesKHR_EXT = 194,
     VK_COMMAND_TYPE_vkImportSemaphoreFdKHR_EXT = 242,
     VK_COMMAND_TYPE_vkGetSemaphoreFdKHR_EXT = 243,
+    VK_COMMAND_TYPE_vkCmdPushDescriptorSetKHR_EXT = 249,
+    VK_COMMAND_TYPE_vkCmdPushDescriptorSetWithTemplateKHR_EXT = 250,
     VK_COMMAND_TYPE_vkCmdBeginConditionalRenderingEXT_EXT = 240,
     VK_COMMAND_TYPE_vkCmdEndConditionalRenderingEXT_EXT = 241,
     VK_COMMAND_TYPE_vkImportFenceFdKHR_EXT = 238,
@@ -337,10 +341,33 @@ typedef enum VkCommandTypeEXT {
     VK_COMMAND_TYPE_vkGetPhysicalDeviceCalibrateableTimeDomainsEXT_EXT = 235,
     VK_COMMAND_TYPE_vkGetCalibratedTimestampsEXT_EXT = 236,
     VK_COMMAND_TYPE_vkCmdSetLineStippleEXT_EXT = 237,
+    VK_COMMAND_TYPE_vkCmdSetVertexInputEXT_EXT = 255,
     VK_COMMAND_TYPE_vkCmdSetPatchControlPointsEXT_EXT = 233,
     VK_COMMAND_TYPE_vkCmdSetLogicOpEXT_EXT = 234,
+    VK_COMMAND_TYPE_vkCmdSetColorWriteEnableEXT_EXT = 254,
     VK_COMMAND_TYPE_vkCmdDrawMultiEXT_EXT = 247,
     VK_COMMAND_TYPE_vkCmdDrawMultiIndexedEXT_EXT = 248,
+    VK_COMMAND_TYPE_vkCmdSetTessellationDomainOriginEXT_EXT = 256,
+    VK_COMMAND_TYPE_vkCmdSetDepthClampEnableEXT_EXT = 257,
+    VK_COMMAND_TYPE_vkCmdSetPolygonModeEXT_EXT = 258,
+    VK_COMMAND_TYPE_vkCmdSetRasterizationSamplesEXT_EXT = 259,
+    VK_COMMAND_TYPE_vkCmdSetSampleMaskEXT_EXT = 260,
+    VK_COMMAND_TYPE_vkCmdSetAlphaToCoverageEnableEXT_EXT = 261,
+    VK_COMMAND_TYPE_vkCmdSetAlphaToOneEnableEXT_EXT = 262,
+    VK_COMMAND_TYPE_vkCmdSetLogicOpEnableEXT_EXT = 263,
+    VK_COMMAND_TYPE_vkCmdSetColorBlendEnableEXT_EXT = 264,
+    VK_COMMAND_TYPE_vkCmdSetColorBlendEquationEXT_EXT = 265,
+    VK_COMMAND_TYPE_vkCmdSetColorWriteMaskEXT_EXT = 266,
+    VK_COMMAND_TYPE_vkCmdSetRasterizationStreamEXT_EXT = 267,
+    VK_COMMAND_TYPE_vkCmdSetConservativeRasterizationModeEXT_EXT = 268,
+    VK_COMMAND_TYPE_vkCmdSetExtraPrimitiveOverestimationSizeEXT_EXT = 269,
+    VK_COMMAND_TYPE_vkCmdSetDepthClipEnableEXT_EXT = 270,
+    VK_COMMAND_TYPE_vkCmdSetSampleLocationsEnableEXT_EXT = 271,
+    VK_COMMAND_TYPE_vkCmdSetColorBlendAdvancedEXT_EXT = 272,
+    VK_COMMAND_TYPE_vkCmdSetProvokingVertexModeEXT_EXT = 273,
+    VK_COMMAND_TYPE_vkCmdSetLineRasterizationModeEXT_EXT = 274,
+    VK_COMMAND_TYPE_vkCmdSetLineStippleEnableEXT_EXT = 275,
+    VK_COMMAND_TYPE_vkCmdSetDepthClipNegativeOneToOneEXT_EXT = 276,
     VK_COMMAND_TYPE_vkSetReplyCommandStreamMESA_EXT = 178,
     VK_COMMAND_TYPE_vkSeekReplyCommandStreamMESA_EXT = 179,
     VK_COMMAND_TYPE_vkExecuteCommandStreamsMESA_EXT = 180,
@@ -349,15 +376,24 @@ typedef enum VkCommandTypeEXT {
     VK_COMMAND_TYPE_vkNotifyRingMESA_EXT = 190,
     VK_COMMAND_TYPE_vkWriteRingExtraMESA_EXT = 191,
     VK_COMMAND_TYPE_vkGetMemoryResourcePropertiesMESA_EXT = 192,
-    VK_COMMAND_TYPE_vkResetFenceResource100000MESA_EXT = 244,
-    VK_COMMAND_TYPE_vkWaitSemaphoreResource100000MESA_EXT = 245,
-    VK_COMMAND_TYPE_vkImportSemaphoreResource100000MESA_EXT = 246,
-    VK_COMMAND_TYPE_vkGetVenusExperimentalFeatureData100000MESA_EXT = 195,
+    VK_COMMAND_TYPE_vkResetFenceResourceMESA_EXT = 244,
+    VK_COMMAND_TYPE_vkWaitSemaphoreResourceMESA_EXT = 245,
+    VK_COMMAND_TYPE_vkImportSemaphoreResourceMESA_EXT = 246,
+    VK_COMMAND_TYPE_vkSubmitVirtqueueSeqnoMESA_EXT = 251,
+    VK_COMMAND_TYPE_vkWaitVirtqueueSeqnoMESA_EXT = 252,
+    VK_COMMAND_TYPE_vkWaitRingSeqnoMESA_EXT = 253,
 } VkCommandTypeEXT;
 
 typedef enum VkCommandFlagBitsEXT {
     VK_COMMAND_GENERATE_REPLY_BIT_EXT = 0x00000001,
 } VkCommandFlagBitsEXT;
+
+typedef enum VkRingStatusFlagBitsMESA {
+    VK_RING_STATUS_NONE_MESA = 0,
+    VK_RING_STATUS_IDLE_BIT_MESA = 0x00000001,
+    VK_RING_STATUS_FATAL_BIT_MESA = 0x00000002,
+    VK_RING_STATUS_ALIVE_BIT_MESA = 0x00000004,
+} VkRingStatusFlagBitsMESA;
 
 typedef VkFlags VkCommandFlagsEXT;
 
@@ -366,6 +402,8 @@ typedef VkFlags VkCommandStreamExecutionFlagsMESA;
 typedef VkFlags VkRingCreateFlagsMESA;
 
 typedef VkFlags VkRingNotifyFlagsMESA;
+
+typedef VkFlags VkRingStatusFlagsMESA;
 
 typedef struct VkCommandStreamDescriptionMESA {
     uint32_t resourceId;
@@ -395,6 +433,12 @@ typedef struct VkRingCreateInfoMESA {
     size_t extraSize;
 } VkRingCreateInfoMESA;
 
+typedef struct VkRingMonitorInfoMESA {
+    VkStructureType sType;
+    const void* pNext;
+    uint32_t maxReportingPeriodMicroseconds;
+} VkRingMonitorInfoMESA;
+
 typedef struct VkMemoryResourcePropertiesMESA {
     VkStructureType sType;
     void* pNext;
@@ -407,18 +451,24 @@ typedef struct VkImportMemoryResourceInfoMESA {
     uint32_t resourceId;
 } VkImportMemoryResourceInfoMESA;
 
-typedef struct VkVenusExperimentalFeatures100000MESA {
-    VkBool32 memoryResourceAllocationSize;
-    VkBool32 globalFencing;
-    VkBool32 largeRing;
-    VkBool32 syncFdFencing;
-} VkVenusExperimentalFeatures100000MESA;
-
-typedef struct VkMemoryResourceAllocationSizeProperties100000MESA {
+typedef struct VkMemoryResourceAllocationSizePropertiesMESA {
     VkStructureType sType;
     void* pNext;
     uint64_t allocationSize;
-} VkMemoryResourceAllocationSizeProperties100000MESA;
+} VkMemoryResourceAllocationSizePropertiesMESA;
+
+typedef struct VkImportSemaphoreResourceInfoMESA {
+    VkStructureType sType;
+    const void* pNext;
+    VkSemaphore semaphore;
+    uint32_t resourceId;
+} VkImportSemaphoreResourceInfoMESA;
+
+typedef struct VkDeviceQueueTimelineInfoMESA {
+    VkStructureType sType;
+    const void* pNext;
+    uint32_t ringIdx;
+} VkDeviceQueueTimelineInfoMESA;
 
 typedef struct VkImportSemaphoreResourceInfo100000MESA {
     VkStructureType sType;
@@ -1556,6 +1606,15 @@ struct vn_command_vkGetPhysicalDeviceSparseImageFormatProperties2 {
     VkSparseImageFormatProperties2* pProperties;
 };
 
+struct vn_command_vkCmdPushDescriptorSetKHR {
+    VkCommandBuffer commandBuffer;
+    VkPipelineBindPoint pipelineBindPoint;
+    VkPipelineLayout layout;
+    uint32_t set;
+    uint32_t descriptorWriteCount;
+    const VkWriteDescriptorSet* pDescriptorWrites;
+};
+
 struct vn_command_vkTrimCommandPool {
     VkDevice device;
     VkCommandPool commandPool;
@@ -1693,6 +1752,14 @@ struct vn_command_vkUpdateDescriptorSetWithTemplate {
     VkDevice device;
     VkDescriptorSet descriptorSet;
     VkDescriptorUpdateTemplate descriptorUpdateTemplate;
+    const void* pData;
+};
+
+struct vn_command_vkCmdPushDescriptorSetWithTemplateKHR {
+    VkCommandBuffer commandBuffer;
+    VkDescriptorUpdateTemplate descriptorUpdateTemplate;
+    VkPipelineLayout layout;
+    uint32_t set;
     const void* pData;
 };
 
@@ -2037,6 +2104,120 @@ struct vn_command_vkCmdSetPrimitiveRestartEnable {
     VkBool32 primitiveRestartEnable;
 };
 
+struct vn_command_vkCmdSetTessellationDomainOriginEXT {
+    VkCommandBuffer commandBuffer;
+    VkTessellationDomainOrigin domainOrigin;
+};
+
+struct vn_command_vkCmdSetDepthClampEnableEXT {
+    VkCommandBuffer commandBuffer;
+    VkBool32 depthClampEnable;
+};
+
+struct vn_command_vkCmdSetPolygonModeEXT {
+    VkCommandBuffer commandBuffer;
+    VkPolygonMode polygonMode;
+};
+
+struct vn_command_vkCmdSetRasterizationSamplesEXT {
+    VkCommandBuffer commandBuffer;
+    VkSampleCountFlagBits rasterizationSamples;
+};
+
+struct vn_command_vkCmdSetSampleMaskEXT {
+    VkCommandBuffer commandBuffer;
+    VkSampleCountFlagBits samples;
+    const VkSampleMask* pSampleMask;
+};
+
+struct vn_command_vkCmdSetAlphaToCoverageEnableEXT {
+    VkCommandBuffer commandBuffer;
+    VkBool32 alphaToCoverageEnable;
+};
+
+struct vn_command_vkCmdSetAlphaToOneEnableEXT {
+    VkCommandBuffer commandBuffer;
+    VkBool32 alphaToOneEnable;
+};
+
+struct vn_command_vkCmdSetLogicOpEnableEXT {
+    VkCommandBuffer commandBuffer;
+    VkBool32 logicOpEnable;
+};
+
+struct vn_command_vkCmdSetColorBlendEnableEXT {
+    VkCommandBuffer commandBuffer;
+    uint32_t firstAttachment;
+    uint32_t attachmentCount;
+    const VkBool32* pColorBlendEnables;
+};
+
+struct vn_command_vkCmdSetColorBlendEquationEXT {
+    VkCommandBuffer commandBuffer;
+    uint32_t firstAttachment;
+    uint32_t attachmentCount;
+    const VkColorBlendEquationEXT* pColorBlendEquations;
+};
+
+struct vn_command_vkCmdSetColorWriteMaskEXT {
+    VkCommandBuffer commandBuffer;
+    uint32_t firstAttachment;
+    uint32_t attachmentCount;
+    const VkColorComponentFlags* pColorWriteMasks;
+};
+
+struct vn_command_vkCmdSetRasterizationStreamEXT {
+    VkCommandBuffer commandBuffer;
+    uint32_t rasterizationStream;
+};
+
+struct vn_command_vkCmdSetConservativeRasterizationModeEXT {
+    VkCommandBuffer commandBuffer;
+    VkConservativeRasterizationModeEXT conservativeRasterizationMode;
+};
+
+struct vn_command_vkCmdSetExtraPrimitiveOverestimationSizeEXT {
+    VkCommandBuffer commandBuffer;
+    float extraPrimitiveOverestimationSize;
+};
+
+struct vn_command_vkCmdSetDepthClipEnableEXT {
+    VkCommandBuffer commandBuffer;
+    VkBool32 depthClipEnable;
+};
+
+struct vn_command_vkCmdSetSampleLocationsEnableEXT {
+    VkCommandBuffer commandBuffer;
+    VkBool32 sampleLocationsEnable;
+};
+
+struct vn_command_vkCmdSetColorBlendAdvancedEXT {
+    VkCommandBuffer commandBuffer;
+    uint32_t firstAttachment;
+    uint32_t attachmentCount;
+    const VkColorBlendAdvancedEXT* pColorBlendAdvanced;
+};
+
+struct vn_command_vkCmdSetProvokingVertexModeEXT {
+    VkCommandBuffer commandBuffer;
+    VkProvokingVertexModeEXT provokingVertexMode;
+};
+
+struct vn_command_vkCmdSetLineRasterizationModeEXT {
+    VkCommandBuffer commandBuffer;
+    VkLineRasterizationModeEXT lineRasterizationMode;
+};
+
+struct vn_command_vkCmdSetLineStippleEnableEXT {
+    VkCommandBuffer commandBuffer;
+    VkBool32 stippledLineEnable;
+};
+
+struct vn_command_vkCmdSetDepthClipNegativeOneToOneEXT {
+    VkCommandBuffer commandBuffer;
+    VkBool32 negativeOneToOne;
+};
+
 struct vn_command_vkCreatePrivateDataSlot {
     VkDevice device;
     const VkPrivateDataSlotCreateInfo* pCreateInfo;
@@ -2098,6 +2279,20 @@ struct vn_command_vkCmdCopyImageToBuffer2 {
 struct vn_command_vkCmdResolveImage2 {
     VkCommandBuffer commandBuffer;
     const VkResolveImageInfo2* pResolveImageInfo;
+};
+
+struct vn_command_vkCmdSetVertexInputEXT {
+    VkCommandBuffer commandBuffer;
+    uint32_t vertexBindingDescriptionCount;
+    const VkVertexInputBindingDescription2EXT* pVertexBindingDescriptions;
+    uint32_t vertexAttributeDescriptionCount;
+    const VkVertexInputAttributeDescription2EXT* pVertexAttributeDescriptions;
+};
+
+struct vn_command_vkCmdSetColorWriteEnableEXT {
+    VkCommandBuffer commandBuffer;
+    uint32_t attachmentCount;
+    const VkBool32* pColorWriteEnables;
 };
 
 struct vn_command_vkCmdSetEvent2 {
@@ -2195,24 +2390,33 @@ struct vn_command_vkGetMemoryResourcePropertiesMESA {
     VkResult ret;
 };
 
-struct vn_command_vkResetFenceResource100000MESA {
+struct vn_command_vkResetFenceResourceMESA {
     VkDevice device;
     VkFence fence;
 };
 
-struct vn_command_vkWaitSemaphoreResource100000MESA {
+struct vn_command_vkWaitSemaphoreResourceMESA {
     VkDevice device;
     VkSemaphore semaphore;
 };
 
-struct vn_command_vkImportSemaphoreResource100000MESA {
+struct vn_command_vkImportSemaphoreResourceMESA {
     VkDevice device;
-    const VkImportSemaphoreResourceInfo100000MESA* pImportSemaphoreResourceInfo;
+    const VkImportSemaphoreResourceInfoMESA* pImportSemaphoreResourceInfo;
 };
 
-struct vn_command_vkGetVenusExperimentalFeatureData100000MESA {
-    size_t* pDataSize;
-    void* pData;
+struct vn_command_vkSubmitVirtqueueSeqnoMESA {
+    uint64_t ring;
+    uint64_t seqno;
+};
+
+struct vn_command_vkWaitVirtqueueSeqnoMESA {
+    uint64_t seqno;
+};
+
+struct vn_command_vkWaitRingSeqnoMESA {
+    uint64_t ring;
+    uint64_t seqno;
 };
 
 struct vn_dispatch_context {
@@ -2372,6 +2576,7 @@ struct vn_dispatch_context {
     void (*dispatch_vkGetPhysicalDeviceQueueFamilyProperties2)(struct vn_dispatch_context *ctx, struct vn_command_vkGetPhysicalDeviceQueueFamilyProperties2 *args);
     void (*dispatch_vkGetPhysicalDeviceMemoryProperties2)(struct vn_dispatch_context *ctx, struct vn_command_vkGetPhysicalDeviceMemoryProperties2 *args);
     void (*dispatch_vkGetPhysicalDeviceSparseImageFormatProperties2)(struct vn_dispatch_context *ctx, struct vn_command_vkGetPhysicalDeviceSparseImageFormatProperties2 *args);
+    void (*dispatch_vkCmdPushDescriptorSetKHR)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdPushDescriptorSetKHR *args);
     void (*dispatch_vkTrimCommandPool)(struct vn_dispatch_context *ctx, struct vn_command_vkTrimCommandPool *args);
     void (*dispatch_vkGetPhysicalDeviceExternalBufferProperties)(struct vn_dispatch_context *ctx, struct vn_command_vkGetPhysicalDeviceExternalBufferProperties *args);
     void (*dispatch_vkGetMemoryFdKHR)(struct vn_dispatch_context *ctx, struct vn_command_vkGetMemoryFdKHR *args);
@@ -2391,6 +2596,7 @@ struct vn_dispatch_context {
     void (*dispatch_vkCreateDescriptorUpdateTemplate)(struct vn_dispatch_context *ctx, struct vn_command_vkCreateDescriptorUpdateTemplate *args);
     void (*dispatch_vkDestroyDescriptorUpdateTemplate)(struct vn_dispatch_context *ctx, struct vn_command_vkDestroyDescriptorUpdateTemplate *args);
     void (*dispatch_vkUpdateDescriptorSetWithTemplate)(struct vn_dispatch_context *ctx, struct vn_command_vkUpdateDescriptorSetWithTemplate *args);
+    void (*dispatch_vkCmdPushDescriptorSetWithTemplateKHR)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdPushDescriptorSetWithTemplateKHR *args);
     void (*dispatch_vkGetBufferMemoryRequirements2)(struct vn_dispatch_context *ctx, struct vn_command_vkGetBufferMemoryRequirements2 *args);
     void (*dispatch_vkGetImageMemoryRequirements2)(struct vn_dispatch_context *ctx, struct vn_command_vkGetImageMemoryRequirements2 *args);
     void (*dispatch_vkGetImageSparseMemoryRequirements2)(struct vn_dispatch_context *ctx, struct vn_command_vkGetImageSparseMemoryRequirements2 *args);
@@ -2441,6 +2647,27 @@ struct vn_dispatch_context {
     void (*dispatch_vkCmdSetDepthBiasEnable)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdSetDepthBiasEnable *args);
     void (*dispatch_vkCmdSetLogicOpEXT)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdSetLogicOpEXT *args);
     void (*dispatch_vkCmdSetPrimitiveRestartEnable)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdSetPrimitiveRestartEnable *args);
+    void (*dispatch_vkCmdSetTessellationDomainOriginEXT)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdSetTessellationDomainOriginEXT *args);
+    void (*dispatch_vkCmdSetDepthClampEnableEXT)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdSetDepthClampEnableEXT *args);
+    void (*dispatch_vkCmdSetPolygonModeEXT)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdSetPolygonModeEXT *args);
+    void (*dispatch_vkCmdSetRasterizationSamplesEXT)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdSetRasterizationSamplesEXT *args);
+    void (*dispatch_vkCmdSetSampleMaskEXT)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdSetSampleMaskEXT *args);
+    void (*dispatch_vkCmdSetAlphaToCoverageEnableEXT)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdSetAlphaToCoverageEnableEXT *args);
+    void (*dispatch_vkCmdSetAlphaToOneEnableEXT)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdSetAlphaToOneEnableEXT *args);
+    void (*dispatch_vkCmdSetLogicOpEnableEXT)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdSetLogicOpEnableEXT *args);
+    void (*dispatch_vkCmdSetColorBlendEnableEXT)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdSetColorBlendEnableEXT *args);
+    void (*dispatch_vkCmdSetColorBlendEquationEXT)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdSetColorBlendEquationEXT *args);
+    void (*dispatch_vkCmdSetColorWriteMaskEXT)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdSetColorWriteMaskEXT *args);
+    void (*dispatch_vkCmdSetRasterizationStreamEXT)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdSetRasterizationStreamEXT *args);
+    void (*dispatch_vkCmdSetConservativeRasterizationModeEXT)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdSetConservativeRasterizationModeEXT *args);
+    void (*dispatch_vkCmdSetExtraPrimitiveOverestimationSizeEXT)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdSetExtraPrimitiveOverestimationSizeEXT *args);
+    void (*dispatch_vkCmdSetDepthClipEnableEXT)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdSetDepthClipEnableEXT *args);
+    void (*dispatch_vkCmdSetSampleLocationsEnableEXT)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdSetSampleLocationsEnableEXT *args);
+    void (*dispatch_vkCmdSetColorBlendAdvancedEXT)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdSetColorBlendAdvancedEXT *args);
+    void (*dispatch_vkCmdSetProvokingVertexModeEXT)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdSetProvokingVertexModeEXT *args);
+    void (*dispatch_vkCmdSetLineRasterizationModeEXT)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdSetLineRasterizationModeEXT *args);
+    void (*dispatch_vkCmdSetLineStippleEnableEXT)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdSetLineStippleEnableEXT *args);
+    void (*dispatch_vkCmdSetDepthClipNegativeOneToOneEXT)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdSetDepthClipNegativeOneToOneEXT *args);
     void (*dispatch_vkCreatePrivateDataSlot)(struct vn_dispatch_context *ctx, struct vn_command_vkCreatePrivateDataSlot *args);
     void (*dispatch_vkDestroyPrivateDataSlot)(struct vn_dispatch_context *ctx, struct vn_command_vkDestroyPrivateDataSlot *args);
     void (*dispatch_vkSetPrivateData)(struct vn_dispatch_context *ctx, struct vn_command_vkSetPrivateData *args);
@@ -2451,6 +2678,8 @@ struct vn_dispatch_context {
     void (*dispatch_vkCmdCopyBufferToImage2)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdCopyBufferToImage2 *args);
     void (*dispatch_vkCmdCopyImageToBuffer2)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdCopyImageToBuffer2 *args);
     void (*dispatch_vkCmdResolveImage2)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdResolveImage2 *args);
+    void (*dispatch_vkCmdSetVertexInputEXT)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdSetVertexInputEXT *args);
+    void (*dispatch_vkCmdSetColorWriteEnableEXT)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdSetColorWriteEnableEXT *args);
     void (*dispatch_vkCmdSetEvent2)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdSetEvent2 *args);
     void (*dispatch_vkCmdResetEvent2)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdResetEvent2 *args);
     void (*dispatch_vkCmdWaitEvents2)(struct vn_dispatch_context *ctx, struct vn_command_vkCmdWaitEvents2 *args);
@@ -2467,10 +2696,12 @@ struct vn_dispatch_context {
     void (*dispatch_vkNotifyRingMESA)(struct vn_dispatch_context *ctx, struct vn_command_vkNotifyRingMESA *args);
     void (*dispatch_vkWriteRingExtraMESA)(struct vn_dispatch_context *ctx, struct vn_command_vkWriteRingExtraMESA *args);
     void (*dispatch_vkGetMemoryResourcePropertiesMESA)(struct vn_dispatch_context *ctx, struct vn_command_vkGetMemoryResourcePropertiesMESA *args);
-    void (*dispatch_vkResetFenceResource100000MESA)(struct vn_dispatch_context *ctx, struct vn_command_vkResetFenceResource100000MESA *args);
-    void (*dispatch_vkWaitSemaphoreResource100000MESA)(struct vn_dispatch_context *ctx, struct vn_command_vkWaitSemaphoreResource100000MESA *args);
-    void (*dispatch_vkImportSemaphoreResource100000MESA)(struct vn_dispatch_context *ctx, struct vn_command_vkImportSemaphoreResource100000MESA *args);
-    void (*dispatch_vkGetVenusExperimentalFeatureData100000MESA)(struct vn_dispatch_context *ctx, struct vn_command_vkGetVenusExperimentalFeatureData100000MESA *args);
+    void (*dispatch_vkResetFenceResourceMESA)(struct vn_dispatch_context *ctx, struct vn_command_vkResetFenceResourceMESA *args);
+    void (*dispatch_vkWaitSemaphoreResourceMESA)(struct vn_dispatch_context *ctx, struct vn_command_vkWaitSemaphoreResourceMESA *args);
+    void (*dispatch_vkImportSemaphoreResourceMESA)(struct vn_dispatch_context *ctx, struct vn_command_vkImportSemaphoreResourceMESA *args);
+    void (*dispatch_vkSubmitVirtqueueSeqnoMESA)(struct vn_dispatch_context *ctx, struct vn_command_vkSubmitVirtqueueSeqnoMESA *args);
+    void (*dispatch_vkWaitVirtqueueSeqnoMESA)(struct vn_dispatch_context *ctx, struct vn_command_vkWaitVirtqueueSeqnoMESA *args);
+    void (*dispatch_vkWaitRingSeqnoMESA)(struct vn_dispatch_context *ctx, struct vn_command_vkWaitRingSeqnoMESA *args);
 };
 
 static inline void vn_dispatch_debug_log(struct vn_dispatch_context *ctx, const char *format, ...)

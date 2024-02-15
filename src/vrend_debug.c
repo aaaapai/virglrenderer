@@ -28,6 +28,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#ifdef _WIN32
+#include <process.h>
+#endif
+
 static const char *command_names[VIRGL_MAX_COMMANDS] = {
    "NOP",
    "CREATE_OBJECT",
@@ -91,6 +95,7 @@ static const char *command_names[VIRGL_MAX_COMMANDS] = {
    "DECODE_BITSTREAM",
    "ENCODE_BITSTREAM",
    "END_FRAME",
+   "CLEAR_SURFACE",
 };
 
 static const char *object_type_names[VIRGL_MAX_OBJECTS] = {
@@ -107,6 +112,24 @@ static const char *object_type_names[VIRGL_MAX_OBJECTS] = {
    "STREAMOUT_TARGET",
    "MSAA_SURFACE"
 };
+
+#ifdef _WIN32
+static int setenv(const char *name, const char *value, int overwrite)
+{
+    int errcode = 0;
+    if(!overwrite) {
+        size_t envsize = 0;
+        errcode = getenv_s(&envsize, NULL, 0, name);
+        if(errcode || envsize) return errcode;
+    }
+    return _putenv_s(name, value);
+}
+
+static int unsetenv(const char *name)
+{
+   return _putenv_s(name, NULL);
+}
+#endif
 
 const char *vrend_get_comand_name(enum virgl_context_cmd cmd)
 {
@@ -141,6 +164,7 @@ static const struct debug_named_value vrend_debug_options[] = {
    {"all", dbg_all, "Enable all debugging output"},
    {"guestallow", dbg_allow_guest_override, "Allow the guest to override the debug flags"},
    {"khr", dbg_khr, "Enable debug via KHR_debug extension"},
+   {"d3d", dbg_d3d, "Enable D3D-related debug"},
    DEBUG_NAMED_VALUE_END
 };
 
@@ -171,6 +195,8 @@ void vrend_init_debug_flags(void)
       vrend_debug_flags_initalized = 1;
       vrend_debug_flags = debug_get_flags_option("VREND_DEBUG",
                                                  vrend_debug_options, 0);
+      if (vrend_debug_flags)
+         virgl_override_log_level(VIRGL_LOG_LEVEL_DEBUG);
    }
 }
 

@@ -11,6 +11,9 @@
 #include "vn_protocol_renderer_structs.h"
 
 #pragma GCC diagnostic push
+#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ >= 12
+#pragma GCC diagnostic ignored "-Wdangling-pointer"
+#endif
 #pragma GCC diagnostic ignored "-Wpointer-arith"
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
@@ -211,7 +214,7 @@ static inline void vn_decode_vkMergePipelineCaches_args_temp(struct vn_cs_decode
     vn_decode_uint32_t(dec, &args->srcCacheCount);
     if (vn_peek_array_size(dec)) {
         const uint32_t iter_count = vn_decode_array_size(dec, args->srcCacheCount);
-        args->pSrcCaches = vn_cs_decoder_alloc_temp(dec, sizeof(*args->pSrcCaches) * iter_count);
+        args->pSrcCaches = vn_cs_decoder_alloc_temp_array(dec, sizeof(*args->pSrcCaches), iter_count);
         if (!args->pSrcCaches) return;
         for (uint32_t i = 0; i < iter_count; i++)
             vn_decode_VkPipelineCache_lookup(dec, &((VkPipelineCache *)args->pSrcCaches)[i]);
@@ -266,8 +269,8 @@ static inline void vn_dispatch_vkCreatePipelineCache(struct vn_dispatch_context 
         vn_dispatch_debug_log(ctx, "vkCreatePipelineCache returned %d", args.ret);
 #endif
 
-    if (!vn_cs_decoder_get_fatal(ctx->decoder) && (flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT))
-       vn_encode_vkCreatePipelineCache_reply(ctx->encoder, &args);
+    if ((flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT) && !vn_cs_decoder_get_fatal(ctx->decoder))
+        vn_encode_vkCreatePipelineCache_reply(ctx->encoder, &args);
 
     vn_cs_decoder_reset_temp_pool(ctx->decoder);
 }
@@ -290,9 +293,8 @@ static inline void vn_dispatch_vkDestroyPipelineCache(struct vn_dispatch_context
     if (!vn_cs_decoder_get_fatal(ctx->decoder))
         ctx->dispatch_vkDestroyPipelineCache(ctx, &args);
 
-
-    if (!vn_cs_decoder_get_fatal(ctx->decoder) && (flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT))
-       vn_encode_vkDestroyPipelineCache_reply(ctx->encoder, &args);
+    if ((flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT) && !vn_cs_decoder_get_fatal(ctx->decoder))
+        vn_encode_vkDestroyPipelineCache_reply(ctx->encoder, &args);
 
     vn_cs_decoder_reset_temp_pool(ctx->decoder);
 }
@@ -320,8 +322,8 @@ static inline void vn_dispatch_vkGetPipelineCacheData(struct vn_dispatch_context
         vn_dispatch_debug_log(ctx, "vkGetPipelineCacheData returned %d", args.ret);
 #endif
 
-    if (!vn_cs_decoder_get_fatal(ctx->decoder) && (flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT))
-       vn_encode_vkGetPipelineCacheData_reply(ctx->encoder, &args);
+    if ((flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT) && !vn_cs_decoder_get_fatal(ctx->decoder))
+        vn_encode_vkGetPipelineCacheData_reply(ctx->encoder, &args);
 
     vn_cs_decoder_reset_temp_pool(ctx->decoder);
 }
@@ -349,8 +351,8 @@ static inline void vn_dispatch_vkMergePipelineCaches(struct vn_dispatch_context 
         vn_dispatch_debug_log(ctx, "vkMergePipelineCaches returned %d", args.ret);
 #endif
 
-    if (!vn_cs_decoder_get_fatal(ctx->decoder) && (flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT))
-       vn_encode_vkMergePipelineCaches_reply(ctx->encoder, &args);
+    if ((flags & VK_COMMAND_GENERATE_REPLY_BIT_EXT) && !vn_cs_decoder_get_fatal(ctx->decoder))
+        vn_encode_vkMergePipelineCaches_reply(ctx->encoder, &args);
 
     vn_cs_decoder_reset_temp_pool(ctx->decoder);
 }

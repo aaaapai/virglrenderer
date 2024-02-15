@@ -40,7 +40,7 @@
 #include "pipe/p_defines.h"
 
 /** Test if the format contains RGB, but not alpha */
-boolean
+bool
 util_format_has_alpha(enum pipe_format format)
 {
    const struct util_format_description *desc =
@@ -48,11 +48,11 @@ util_format_has_alpha(enum pipe_format format)
 
    return (desc->colorspace == UTIL_FORMAT_COLORSPACE_RGB ||
            desc->colorspace == UTIL_FORMAT_COLORSPACE_SRGB) &&
-          desc->swizzle[3] != UTIL_FORMAT_SWIZZLE_1;
+          desc->swizzle[3] != PIPE_SWIZZLE_1;
 }
 
 
-boolean
+bool
 util_format_is_luminance(enum pipe_format format)
 {
    const struct util_format_description *desc =
@@ -60,16 +60,16 @@ util_format_is_luminance(enum pipe_format format)
 
    if ((desc->colorspace == UTIL_FORMAT_COLORSPACE_RGB ||
         desc->colorspace == UTIL_FORMAT_COLORSPACE_SRGB) &&
-       desc->swizzle[0] == UTIL_FORMAT_SWIZZLE_X &&
-       desc->swizzle[1] == UTIL_FORMAT_SWIZZLE_X &&
-       desc->swizzle[2] == UTIL_FORMAT_SWIZZLE_X &&
-       desc->swizzle[3] == UTIL_FORMAT_SWIZZLE_1) {
-      return TRUE;
+       desc->swizzle[0] == PIPE_SWIZZLE_X &&
+       desc->swizzle[1] == PIPE_SWIZZLE_X &&
+       desc->swizzle[2] == PIPE_SWIZZLE_X &&
+       desc->swizzle[3] == PIPE_SWIZZLE_1) {
+      return true;
    }
-   return FALSE;
+   return false;
 }
 
-boolean
+bool
 util_format_is_alpha(enum pipe_format format)
 {
    const struct util_format_description *desc =
@@ -77,16 +77,16 @@ util_format_is_alpha(enum pipe_format format)
 
    if ((desc->colorspace == UTIL_FORMAT_COLORSPACE_RGB ||
         desc->colorspace == UTIL_FORMAT_COLORSPACE_SRGB) &&
-       desc->swizzle[0] == UTIL_FORMAT_SWIZZLE_0 &&
-       desc->swizzle[1] == UTIL_FORMAT_SWIZZLE_0 &&
-       desc->swizzle[2] == UTIL_FORMAT_SWIZZLE_0 &&
-       desc->swizzle[3] == UTIL_FORMAT_SWIZZLE_X) {
-      return TRUE;
+       desc->swizzle[0] == PIPE_SWIZZLE_0 &&
+       desc->swizzle[1] == PIPE_SWIZZLE_0 &&
+       desc->swizzle[2] == PIPE_SWIZZLE_0 &&
+       desc->swizzle[3] == PIPE_SWIZZLE_X) {
+      return true;
    }
-   return FALSE;
+   return false;
 }
 
-boolean
+bool
 util_format_is_pure_integer(enum pipe_format format)
 {
    const struct util_format_description *desc = util_format_description(format);
@@ -95,12 +95,12 @@ util_format_is_pure_integer(enum pipe_format format)
    /* Find the first non-void channel. */
    i = util_format_get_first_non_void_channel(format);
    if (i == -1)
-      return FALSE;
+      return false;
 
-   return desc->channel[i].pure_integer ? TRUE : FALSE;
+   return desc->channel[i].pure_integer ? true : false;
 }
 
-boolean
+bool
 util_format_is_pure_sint(enum pipe_format format)
 {
    const struct util_format_description *desc = util_format_description(format);
@@ -108,12 +108,12 @@ util_format_is_pure_sint(enum pipe_format format)
 
    i = util_format_get_first_non_void_channel(format);
    if (i == -1)
-      return FALSE;
+      return false;
 
-   return (desc->channel[i].type == UTIL_FORMAT_TYPE_SIGNED && desc->channel[i].pure_integer) ? TRUE : FALSE;
+   return (desc->channel[i].type == UTIL_FORMAT_TYPE_SIGNED && desc->channel[i].pure_integer) ? true : false;
 }
 
-boolean
+bool
 util_format_is_pure_uint(enum pipe_format format)
 {
    const struct util_format_description *desc = util_format_description(format);
@@ -121,33 +121,33 @@ util_format_is_pure_uint(enum pipe_format format)
 
    i = util_format_get_first_non_void_channel(format);
    if (i == -1)
-      return FALSE;
+      return false;
 
-   return (desc->channel[i].type == UTIL_FORMAT_TYPE_UNSIGNED && desc->channel[i].pure_integer) ? TRUE : FALSE;
+   return (desc->channel[i].type == UTIL_FORMAT_TYPE_UNSIGNED && desc->channel[i].pure_integer) ? true : false;
 }
 
 /**
  * Returns true if all non-void channels are normalized signed.
  */
-boolean
+bool
 util_format_is_snorm(enum pipe_format format)
 {
    const struct util_format_description *desc = util_format_description(format);
    int i;
 
    if (desc->is_mixed)
-      return FALSE;
+      return false;
 
    i = util_format_get_first_non_void_channel(format);
    if (i == -1)
-      return FALSE;
+      return false;
 
    return desc->channel[i].type == UTIL_FORMAT_TYPE_SIGNED &&
           !desc->channel[i].pure_integer &&
           desc->channel[i].normalized;
 }
 
-boolean
+bool
 util_format_is_luminance_alpha(enum pipe_format format)
 {
    const struct util_format_description *desc =
@@ -155,17 +155,17 @@ util_format_is_luminance_alpha(enum pipe_format format)
 
    if ((desc->colorspace == UTIL_FORMAT_COLORSPACE_RGB ||
         desc->colorspace == UTIL_FORMAT_COLORSPACE_SRGB) &&
-       desc->swizzle[0] == UTIL_FORMAT_SWIZZLE_X &&
-       desc->swizzle[1] == UTIL_FORMAT_SWIZZLE_X &&
-       desc->swizzle[2] == UTIL_FORMAT_SWIZZLE_X &&
-       desc->swizzle[3] == UTIL_FORMAT_SWIZZLE_Y) {
-      return TRUE;
+       desc->swizzle[0] == PIPE_SWIZZLE_X &&
+       desc->swizzle[1] == PIPE_SWIZZLE_X &&
+       desc->swizzle[2] == PIPE_SWIZZLE_X &&
+       desc->swizzle[3] == PIPE_SWIZZLE_Y) {
+      return true;
    }
-   return FALSE;
+   return false;
 }
 
 
-boolean
+bool
 util_format_is_intensity(enum pipe_format format)
 {
    const struct util_format_description *desc =
@@ -173,13 +173,13 @@ util_format_is_intensity(enum pipe_format format)
 
    if ((desc->colorspace == UTIL_FORMAT_COLORSPACE_RGB ||
         desc->colorspace == UTIL_FORMAT_COLORSPACE_SRGB) &&
-       desc->swizzle[0] == UTIL_FORMAT_SWIZZLE_X &&
-       desc->swizzle[1] == UTIL_FORMAT_SWIZZLE_X &&
-       desc->swizzle[2] == UTIL_FORMAT_SWIZZLE_X &&
-       desc->swizzle[3] == UTIL_FORMAT_SWIZZLE_X) {
-      return TRUE;
+       desc->swizzle[0] == PIPE_SWIZZLE_X &&
+       desc->swizzle[1] == PIPE_SWIZZLE_X &&
+       desc->swizzle[2] == PIPE_SWIZZLE_X &&
+       desc->swizzle[3] == PIPE_SWIZZLE_X) {
+      return true;
    }
-   return FALSE;
+   return false;
 }
 
 /**
@@ -218,55 +218,55 @@ util_get_depth_format_mrd(const struct util_format_description *desc)
    return mrd;
 }
 
-boolean
+bool
 util_is_format_compatible(const struct util_format_description *src_desc,
                           const struct util_format_description *dst_desc)
 {
    unsigned chan;
 
    if (src_desc->format == dst_desc->format) {
-      return TRUE;
+      return true;
    }
 
    if (src_desc->layout != UTIL_FORMAT_LAYOUT_PLAIN ||
        dst_desc->layout != UTIL_FORMAT_LAYOUT_PLAIN) {
-      return FALSE;
+      return false;
    }
 
    if (src_desc->block.bits != dst_desc->block.bits ||
        src_desc->nr_channels != dst_desc->nr_channels ||
        src_desc->colorspace != dst_desc->colorspace) {
-      return FALSE;
+      return false;
    }
 
    for (chan = 0; chan < 4; ++chan) {
       if (src_desc->channel[chan].size !=
           dst_desc->channel[chan].size) {
-         return FALSE;
+         return false;
       }
    }
 
    for (chan = 0; chan < 4; ++chan) {
-      enum util_format_swizzle swizzle = dst_desc->swizzle[chan];
+      enum pipe_swizzle swizzle = dst_desc->swizzle[chan];
 
       if (swizzle < 4) {
          if (src_desc->swizzle[chan] != swizzle) {
-            return FALSE;
+            return false;
          }
          if ((src_desc->channel[swizzle].type !=
               dst_desc->channel[swizzle].type) ||
              (src_desc->channel[swizzle].normalized !=
               dst_desc->channel[swizzle].normalized)) {
-            return FALSE;
+            return false;
          }
       }
    }
 
-   return TRUE;
+   return true;
 }
 
 
-boolean
+bool
 util_format_fits_8unorm(const struct util_format_description *format_desc)
 {
    unsigned chan;
@@ -276,7 +276,7 @@ util_format_fits_8unorm(const struct util_format_description *format_desc)
     */
 
    if (format_desc->colorspace == UTIL_FORMAT_COLORSPACE_SRGB) {
-      return FALSE;
+      return false;
    }
 
    switch (format_desc->layout) {
@@ -285,18 +285,23 @@ util_format_fits_8unorm(const struct util_format_description *format_desc)
       /*
        * These are straight forward.
        */
-      return TRUE;
+      return true;
    case UTIL_FORMAT_LAYOUT_RGTC:
       if (format_desc->format == PIPE_FORMAT_RGTC1_SNORM ||
           format_desc->format == PIPE_FORMAT_RGTC2_SNORM ||
           format_desc->format == PIPE_FORMAT_LATC1_SNORM ||
           format_desc->format == PIPE_FORMAT_LATC2_SNORM)
-         return FALSE;
-      return TRUE;
+         return false;
+      return true;
    case UTIL_FORMAT_LAYOUT_BPTC:
       if (format_desc->format == PIPE_FORMAT_BPTC_RGBA_UNORM)
-         return TRUE;
-      return FALSE;
+         return true;
+      return false;
+
+   case UTIL_FORMAT_LAYOUT_ETC:
+      if (format_desc->format == PIPE_FORMAT_ETC1_RGB8)
+         return true;
+      return false;
 
    case UTIL_FORMAT_LAYOUT_PLAIN:
       /*
@@ -310,14 +315,14 @@ util_format_fits_8unorm(const struct util_format_description *format_desc)
          case UTIL_FORMAT_TYPE_UNSIGNED:
             if (!format_desc->channel[chan].normalized ||
                 format_desc->channel[chan].size > 8) {
-               return FALSE;
+               return false;
             }
             break;
          default:
-            return FALSE;
+            return false;
          }
       }
-      return TRUE;
+      return true;
 
    default:
       /*
@@ -327,13 +332,15 @@ util_format_fits_8unorm(const struct util_format_description *format_desc)
       switch (format_desc->format) {
       case PIPE_FORMAT_R1_UNORM:
       case PIPE_FORMAT_UYVY:
+      case PIPE_FORMAT_VYUY:
       case PIPE_FORMAT_YUYV:
+      case PIPE_FORMAT_YVYU:
       case PIPE_FORMAT_R8G8_B8G8_UNORM:
       case PIPE_FORMAT_G8R8_G8B8_UNORM:
-         return TRUE;
+         return true;
 
       default:
-         return FALSE;
+         return false;
       }
    }
 }
@@ -346,7 +353,7 @@ void util_format_compose_swizzles(const unsigned char swz1[4],
    unsigned i;
 
    for (i = 0; i < 4; i++) {
-      dst[i] = swz2[i] <= UTIL_FORMAT_SWIZZLE_W ?
+      dst[i] = swz2[i] <= PIPE_SWIZZLE_W ?
                swz1[swz2[i]] : swz2[i];
    }
 }
@@ -354,31 +361,31 @@ void util_format_compose_swizzles(const unsigned char swz1[4],
 void util_format_apply_color_swizzle(union pipe_color_union *dst,
                                      const union pipe_color_union *src,
                                      const unsigned char swz[4],
-                                     const boolean is_integer)
+                                     const bool is_integer)
 {
    unsigned c;
 
    if (is_integer) {
       for (c = 0; c < 4; ++c) {
          switch (swz[c]) {
-         case PIPE_SWIZZLE_RED:   dst->ui[c] = src->ui[0]; break;
-         case PIPE_SWIZZLE_GREEN: dst->ui[c] = src->ui[1]; break;
-         case PIPE_SWIZZLE_BLUE:  dst->ui[c] = src->ui[2]; break;
-         case PIPE_SWIZZLE_ALPHA: dst->ui[c] = src->ui[3]; break;
+         case PIPE_SWIZZLE_X: dst->ui[c] = src->ui[0]; break;
+         case PIPE_SWIZZLE_Y: dst->ui[c] = src->ui[1]; break;
+         case PIPE_SWIZZLE_Z: dst->ui[c] = src->ui[2]; break;
+         case PIPE_SWIZZLE_W: dst->ui[c] = src->ui[3]; break;
          default:
-            dst->ui[c] = (swz[c] == PIPE_SWIZZLE_ONE) ? 1 : 0;
+            dst->ui[c] = (swz[c] == PIPE_SWIZZLE_1) ? 1 : 0;
             break;
          }
       }
    } else {
       for (c = 0; c < 4; ++c) {
          switch (swz[c]) {
-         case PIPE_SWIZZLE_RED:   dst->f[c] = src->f[0]; break;
-         case PIPE_SWIZZLE_GREEN: dst->f[c] = src->f[1]; break;
-         case PIPE_SWIZZLE_BLUE:  dst->f[c] = src->f[2]; break;
-         case PIPE_SWIZZLE_ALPHA: dst->f[c] = src->f[3]; break;
+         case PIPE_SWIZZLE_X: dst->f[c] = src->f[0]; break;
+         case PIPE_SWIZZLE_Y: dst->f[c] = src->f[1]; break;
+         case PIPE_SWIZZLE_Z: dst->f[c] = src->f[2]; break;
+         case PIPE_SWIZZLE_W: dst->f[c] = src->f[3]; break;
          default:
-            dst->f[c] = (swz[c] == PIPE_SWIZZLE_ONE) ? 1.0f : 0.0f;
+            dst->f[c] = (swz[c] == PIPE_SWIZZLE_1) ? 1.0f : 0.0f;
             break;
          }
       }
@@ -391,11 +398,11 @@ void util_format_swizzle_4f(float *dst, const float *src,
    unsigned i;
 
    for (i = 0; i < 4; i++) {
-      if (swz[i] <= UTIL_FORMAT_SWIZZLE_W)
+      if (swz[i] <= PIPE_SWIZZLE_W)
          dst[i] = src[swz[i]];
-      else if (swz[i] == UTIL_FORMAT_SWIZZLE_0)
+      else if (swz[i] == PIPE_SWIZZLE_0)
          dst[i] = 0;
-      else if (swz[i] == UTIL_FORMAT_SWIZZLE_1)
+      else if (swz[i] == PIPE_SWIZZLE_1)
          dst[i] = 1;
    }
 }
@@ -407,16 +414,16 @@ void util_format_unswizzle_4f(float *dst, const float *src,
 
    for (i = 0; i < 4; i++) {
       switch (swz[i]) {
-      case UTIL_FORMAT_SWIZZLE_X:
+      case PIPE_SWIZZLE_X:
          dst[0] = src[i];
          break;
-      case UTIL_FORMAT_SWIZZLE_Y:
+      case PIPE_SWIZZLE_Y:
          dst[1] = src[i];
          break;
-      case UTIL_FORMAT_SWIZZLE_Z:
+      case PIPE_SWIZZLE_Z:
          dst[2] = src[i];
          break;
-      case UTIL_FORMAT_SWIZZLE_W:
+      case PIPE_SWIZZLE_W:
          dst[3] = src[i];
          break;
       }
