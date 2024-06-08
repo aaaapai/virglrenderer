@@ -47,7 +47,7 @@ jobs:
           cd libepoxy-1
           meson "build-android-${{matrix.arch}}" \
             --prefix=/tmp/build \
-            --cross-file "../android-${{matrix.arch}}" \
+            --cross-file "/tmp/generated-cross-file" \
             -Degl=yes -Dglx=no -Dx11=false \
             -Dc_link_args='-ldl -landroid -lEGL -lGLESv2'
           ninja -C "build-android-${{matrix.arch}}" install
