@@ -43,10 +43,8 @@ jobs:
           
       - name: Build libepoxy
         run: |
-          pwd
           git clone -b 2 --depth 1 https://github.com/aaaapai/libepoxy-1.git
           cd libepoxy-1
-          pwd
           meson "build-android-${{matrix.arch}}" \
             --prefix=/tmp/build \
             --cross-file "/tmp/generated-cross-file" \
