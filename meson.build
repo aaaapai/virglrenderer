@@ -27,7 +27,7 @@ project(
    license : 'MIT',
    meson_version : '>= 0.49',
    default_options : ['buildtype=release', 'b_ndebug=if-release',
-                      'warning_level=3', 'c_std=gnu11']
+                      'warning_level=3', 'c_std=gnu17']
 )
 
 # To change only before doing a release:
