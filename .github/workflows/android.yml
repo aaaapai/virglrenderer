@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-- name: Setup
+      - name: Setup
         run: |
           sudo apt update
           sudo apt install -y libxrandr-dev libxxf86vm-dev libxcb-*-dev libx11-xcb-dev libxfixes-dev libdrm-dev libx11-dev
@@ -31,7 +31,7 @@ jobs:
           wget https://github.com/aaaapai/libepoxy-1/raw/test/include/KHR/khrplatform.h -P KHR
           wget https://github.com/aaaapai/libepoxy-1/raw/test/include/GLES3/gl3platform.h -P GLES3
 
-- name: Build libepoxy
+      - name: Build libepoxy
         run: |
           git clone -b 2 --depth 1 https://github.com/aaaapai/libepoxy-1.git
           cd libepoxy-1
