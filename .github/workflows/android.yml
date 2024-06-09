@@ -39,7 +39,7 @@ jobs:
             --prefix=/tmp/build \
             --cross-file "../android-${{matrix.arch}}" \
             -Degl=yes -Dglx=no -Dx11=false \
-            -Dc_link_args='-ldl -landroid -lEGL -lGLESv2'
+            -Dc_link_args='-ldl -landroid -lEGL -lGLESv3'
           ninja -C "build-android-${{matrix.arch}}" install
           
       - name: Build virglrenderer
@@ -47,10 +47,19 @@ jobs:
           meson "build-android-${{matrix.arch}}" \
             --prefix=/tmp/build \
             --cross-file "android-${{matrix.arch}}" \
-            -Dc_link_args='-ldl -landroid -lEGL -lGLESv2' \
+            -Dc_link_args='-ldl -landroid -lEGL -lGLESv3' \
             -Dplatforms=egl
           ninja -C "build-android-${{matrix.arch}}" install
           cp "build-android-${{matrix.arch}}/vtest/libvirgl_test_server.so" /tmp/build/lib/
+
+      - name: Change suffix
+        run: |
+          cd /tmp/build/lib
+          rm libepoxy.so libepoxy.so.0 libvirglrenderer.so libvirglrenderer.so.1
+          mv libepoxy.so.0.* libepoxy_0.so
+          mv libvirglrenderer.so.1.* libvirglrenderer_1.so
+          perl -pi -e 's/libepoxy.so.0/libepoxy_0.so/g' *.so
+          perl -pi -e 's/libvirglrenderer.so.1/libvirglrenderer_1.so/g' *.so ../bin/*
 
       - name: Upload libraries
         uses: actions/upload-artifact@v4
